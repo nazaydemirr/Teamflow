@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teamflow - İnteraktif PRD Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: Warm Neutrals with Indigo Accents (bg-stone-50, text-stone-800, accent-indigo-600) -->
+    <!-- Application Structure Plan: Dashboard tabanlı, bölüm odaklı bir bilgi mimarisi seçildi. PRD gibi yoğun metin içeren dökümanların bilişsel yükünü azaltmak için bilgiler 'Vizyon', 'Kullanıcılar', 'Mimari' ve 'Hedefler' sekmelerine bölündü. Kullanıcılar (ör. yazılımcılar veya paydaşlar) sadece ihtiyaç duydukları bağlama odaklanabilir, kullanıcı hikayelerini personaya göre filtreleyebilir ve hedefleri görsel olarak kavrayabilir. -->
+    <!-- Visualization & Content Choices: 
+         - Vizyon: Metin ve kartlar (Hedef: Bilgilendirme -> Yöntem: Tailwind Grid Kartları -> Gerekçe: Hızlı okunabilirlik)
+         - Kullanıcı Hikayeleri: İnteraktif Liste (Hedef: Organizasyon -> Yöntem: JS tabanlı filtreleme -> Gerekçe: Sadece ilgili personaya odaklanma)
+         - Mimari: CSS Tabanlı Akış Şeması (Hedef: İlişki Gösterme -> Yöntem: HTML/CSS flexbox ve Unicode oklar -> Gerekçe: SVG/Mermaid kısıtı, temiz görünüm)
+         - KPI'lar: Chart.js Grafikleri (Hedef: Bilgilendirme/Karşılaştırma -> Yöntem: Donut ve Bar Chart -> Gerekçe: Sayısal hedefleri somutlaştırmak) 
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        /* Essential Chart Container Styles */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 30vh;
+            max-height: 300px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; max-height: 400px; max-width: 600px; }
+        }
+
+        /* Utility Styles */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fafaf9; }
+        .hide { display: none !important; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f5f5f4; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+    </style>
+</head>
+<body class="text-stone-800 antialiased overflow-hidden flex h-screen">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-white border-r border-stone-200 flex flex-col shadow-sm hidden md:flex z-10">
+        <div class="p-6 border-b border-stone-100">
+            <h1 class="text-2xl font-bold text-indigo-700 tracking-tight">&#x26A1; Teamflow</h1>
+            <p class="text-xs text-stone-500 mt-1 uppercase tracking-wider font-semibold">PRD v1.1 Explorer</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="nav-menu">
+            <button data-target="sec-vizyon" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-indigo-50 text-indigo-700 transition-colors">
+                <span class="text-lg">&#x1F3AF;</span> Vizyon & Problem
+            </button>
+            <button data-target="sec-kullanici" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-stone-600 hover:bg-stone-100 transition-colors">
+                <span class="text-lg">&#x1F465;</span> Kullanıcı Hikayeleri
+            </button>
+            <button data-target="sec-mimari" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-stone-600 hover:bg-stone-100 transition-colors">
+                <span class="text-lg">&#x1F5E4;</span> Sistem & Mimari
+            </button>
+            <button data-target="sec-kpi" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-stone-600 hover:bg-stone-100 transition-colors">
+                <span class="text-lg">&#x1F4C8;</span> KPI & Hedefler
+            </button>
+        </nav>
+        <div class="p-4 border-t border-stone-200 text-xs text-stone-400 text-center">
+            Hazırlayan: N. Aydemir (TPO)
+        </div>
+    </aside>
+
+    <!-- Mobile Nav Header (Visible only on small screens) -->
+    <header class="md:hidden fixed top-0 w-full bg-white border-b border-stone-200 p-4 z-20 flex justify-between items-center shadow-sm">
+        <h1 class="text-xl font-bold text-indigo-700">&#x26A1; Teamflow</h1>
+        <select id="mobile-nav" class="bg-stone-100 border-none text-sm font-medium rounded-md p-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <option value="sec-vizyon">Vizyon & Problem</option>
+            <option value="sec-kullanici">Kullanıcı Hikayeleri</option>
+            <option value="sec-mimari">Sistem & Mimari</option>
+            <option value="sec-kpi">KPI & Hedefler</option>
+        </select>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 h-full overflow-y-auto bg-stone-50 p-6 md:p-12 mt-16 md:mt-0 relative scroll-smooth">
+        
+        <!-- SECTION: Vizyon & Problem -->
+        <section id="sec-vizyon" class="content-section fade-in max-w-5xl mx-auto">
+            <header class="mb-8">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-stone-900 mb-4">Ürün Vizyonu ve Problem Tanımı</h2>
+                <p class="text-lg text-stone-600 leading-relaxed">Bu bölüm, Teamflow'un neden var olduğunu ve hangi kullanıcı acılarını çözdüğünü özetler. Projenin çıkış noktasını ve sunulan "Yetenek Pazaryeri" çözümünün temel argümanlarını içerir.</p>
+            </header>
+
+            <div class="grid md:grid-cols-2 gap-8 mt-8">
+                <!-- Problem Card -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-rose-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl group-hover:scale-110 transition-transform">&#x26A0;&#xFE0F;</div>
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-rose-100 text-rose-600 mb-6 text-2xl">&#x1F6A7;</div>
+                    <h3 class="text-xl font-bold text-stone-800 mb-3">Problem Tanımı</h3>
+                    <p class="text-stone-600 leading-relaxed">Mühendislik öğrencileri, yarışma ve projeler için teknik yeteneklerine uygun ekip arkadaşı bulmakta zorlanmaktadır. Mevcut kanallar (WhatsApp, LinkedIn) web tabanlı hızlı bir "filtrele-eşleş-katıl" akışından yoksundur.</p>
+                </div>
+
+                <!-- Solution Card -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl group-hover:scale-110 transition-transform">&#x1F4A1;</div>
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 mb-6 text-2xl">&#x1F31F;</div>
+                    <h3 class="text-xl font-bold text-stone-800 mb-3">Çözüm: Teamflow</h3>
+                    <p class="text-stone-600 leading-relaxed">Kullanıcıların yetenek bazlı profiller oluşturduğu, web üzerinden herhangi bir yükleme yapmadan projeleri inceleyebildiği ve "Side-Panel" etkileşimiyle ana akıştan kopmadan ekiplere katılabildiği bir yetenek pazaryeri.</p>
+                </div>
+            </div>
+
+            <div class="mt-12 bg-indigo-900 text-white p-8 rounded-2xl shadow-lg relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 text-9xl opacity-20">&#x1F680;</div>
+                <h3 class="text-2xl font-bold mb-2">Platform Hedefi</h3>
+                <p class="text-indigo-200 text-lg max-w-2xl">Teamflow, Next.js / React, Tailwind CSS ve Firebase teknolojileri kullanılarak web odaklı (Responsive), yüksek performanslı bir SPA (Single Page Application) olarak geliştirilecektir.</p>
+            </div>
+        </section>
+
+        <!-- SECTION: Kullanıcı Hikayeleri -->
+        <section id="sec-kullanici" class="content-section fade-in hide max-w-5xl mx-auto">
+            <header class="mb-8">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-stone-900 mb-4">Kullanıcı Hikayeleri (User Stories)</h2>
+                <p class="text-lg text-stone-600 leading-relaxed">Uygulamanın farklı paydaşlarının (Öğrenciler, Ekip Liderleri) temel ihtiyaçlarını ve bu ihtiyaçların ardındaki amaçları inceleyin. Aşağıdaki butonları kullanarak personaya göre filtreleme yapabilirsiniz.</p>
+            </header>
+
+            <!-- Interactive Filters -->
+            <div class="flex flex-wrap gap-3 mb-8 bg-white p-2 rounded-xl shadow-sm inline-flex border border-stone-200">
+                <button onclick="filterStories('all')" id="btn-filter-all" class="px-5 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white shadow-sm transition-all">Tümü</button>
+                <button onclick="filterStories('Öğrenci')" id="btn-filter-ogrenci" class="px-5 py-2 text-sm font-semibold rounded-lg text-stone-600 hover:bg-stone-100 transition-all">Öğrenci</button>
+                <button onclick="filterStories('Ekip Lideri')" id="btn-filter-lider" class="px-5 py-2 text-sm font-semibold rounded-lg text-stone-600 hover:bg-stone-100 transition-all">Ekip Lideri</button>
+                <button onclick="filterStories('Kullanıcı')" id="btn-filter-kullanici" class="px-5 py-2 text-sm font-semibold rounded-lg text-stone-600 hover:bg-stone-100 transition-all">Genel Kullanıcı</button>
+            </div>
+
+            <!-- Dynamic Stories Container -->
+            <div id="stories-container" class="grid gap-4">
+                <!-- Injected via JS -->
+            </div>
+        </section>
+
+        <!-- SECTION: Mimari ve Fonksiyonel Gereksinimler -->
+        <section id="sec-mimari" class="content-section fade-in hide max-w-6xl mx-auto">
+            <header class="mb-8">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-stone-900 mb-4">Sistem Mimarisi & Gereksinimler</h2>
+                <p class="text-lg text-stone-600 leading-relaxed">Uygulamanın teknik omurgasını oluşturan veritabanı ilişkileri (Firestore) ve kullanıcı arayüzü fonksiyonel gereksinimlerini (UI/UX) bu alanda inceleyebilirsiniz.</p>
+            </header>
+
+            <div class="grid lg:grid-cols-2 gap-10">
+                <!-- Left: Functional Requirements -->
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-bold text-stone-800 border-b-2 border-indigo-100 pb-2 inline-block">UI/UX Ekran Detayları</h3>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 border-l-4 border-l-blue-500">
+                        <h4 class="font-bold text-lg mb-2 text-stone-800 flex items-center gap-2">&#x1F4BB; E1: Landing Page</h4>
+                        <ul class="list-disc pl-5 text-stone-600 space-y-1 text-sm">
+                            <li>Profesyonel Hero Alanı: "Ekibini Kur, Akışı Değiştir."</li>
+                            <li>Modern "Google ile Giriş" (OAuth) butonu.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 border-l-4 border-l-purple-500">
+                        <h4 class="font-bold text-lg mb-2 text-stone-800 flex items-center gap-2">&#x1F3AF; E2: Yetenek Seçimi</h4>
+                        <ul class="list-disc pl-5 text-stone-600 space-y-1 text-sm">
+                            <li>Giriş sonrası zorunlu yetenek seçim modalı.</li>
+                            <li>Çoklu seçim (Tag cloud) yapısı. Minimum 3 yetenek seçimi zorunluluğu.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 border-l-4 border-l-emerald-500">
+                        <h4 class="font-bold text-lg mb-2 text-stone-800 flex items-center gap-2">&#x1F4F1; E3: Dinamik Akış (Feed) & Side-Panel</h4>
+                        <ul class="list-disc pl-5 text-stone-600 space-y-1 text-sm">
+                            <li>Sol: Filtreler. Orta: Match % Badge'li kartlar (Sonsuz Kaydırma).</li>
+                            <li>Sağ: Sayfa yenilemeden açılan <strong>Side-Panel</strong> (Katılım ve ekip detayı).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Right: Database Model (HTML/CSS Diagram) -->
+                <div>
+                    <h3 class="text-2xl font-bold text-stone-800 border-b-2 border-indigo-100 pb-2 inline-block mb-6">Veri Modeli (Firestore)</h3>
+                    <div class="bg-stone-100 rounded-2xl p-6 border border-stone-200 flex flex-col items-center gap-4">
+                        
+                        <!-- Users Collection -->
+                        <div class="bg-white w-full max-w-sm rounded-xl shadow-md border-t-4 border-t-indigo-500 p-4 relative z-10 hover:-translate-y-1 transition-transform cursor-pointer" onclick="alert('Kullanıcı yetenek profilini (skills) ve portfolyosunu tutar. Eşleşme algoritmasının kaynağıdır.')">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-bold text-indigo-900">&#x1F4C1; users</h4>
+                                <span class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded">Collection</span>
+                            </div>
+                            <code class="text-xs text-rose-600 bg-rose-50 px-1 py-0.5 rounded">uid (PK)</code>
+                            <div class="text-xs text-stone-600 mt-2 font-mono space-y-1">
+                                <div>displayName: String</div>
+                                <div>skills: Array&lt;String&gt;</div>
+                                <div>website_url: String</div>
+                            </div>
+                        </div>
+
+                        <!-- Down Arrow -->
+                        <div class="text-3xl text-stone-400 font-bold">&#x21E3;</div>
+
+                        <!-- Opportunities Collection -->
+                        <div class="bg-white w-full max-w-sm rounded-xl shadow-md border-t-4 border-t-emerald-500 p-4 relative z-10 hover:-translate-y-1 transition-transform cursor-pointer" onclick="alert('Yarışma, proje veya staj ilanlarını barındırır. İlanın gerektirdiği yetenekler (tags) burada tanımlanır.')">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-bold text-emerald-900">&#x1F4C1; opportunities</h4>
+                                <span class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded">Collection</span>
+                            </div>
+                            <code class="text-xs text-rose-600 bg-rose-50 px-1 py-0.5 rounded">opp_id (PK)</code>
+                            <div class="text-xs text-stone-600 mt-2 font-mono space-y-1">
+                                <div>title: String</div>
+                                <div>tags: Array&lt;String&gt;</div>
+                                <div>deadline: Timestamp</div>
+                            </div>
+                        </div>
+
+                        <!-- Down Arrow -->
+                        <div class="text-3xl text-stone-400 font-bold">&#x21E3;</div>
+
+                        <!-- Teams Collection -->
+                        <div class="bg-white w-full max-w-sm rounded-xl shadow-md border-t-4 border-t-amber-500 p-4 relative z-10 hover:-translate-y-1 transition-transform cursor-pointer" onclick="alert('Bir fırsata (opportunity) bağlı kurulan ekipleri yönetir. Katılım (Katıl butonu) bu tabloyu günceller.')">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-bold text-amber-900">&#x1F4C1; teams</h4>
+                                <span class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded">Collection</span>
+                            </div>
+                            <code class="text-xs text-rose-600 bg-rose-50 px-1 py-0.5 rounded">team_id (PK)</code>
+                            <div class="text-xs text-stone-600 mt-2 font-mono space-y-1">
+                                <div>opp_id: String (FK)</div>
+                                <div>leader_id: String</div>
+                                <div>members: List&lt;uid&gt;</div>
+                            </div>
+                        </div>
+                        
+                        <p class="text-xs text-stone-500 mt-4 text-center">Detayları görmek için koleksiyon kartlarına tıklayın.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: KPI & Hedefler -->
+        <section id="sec-kpi" class="content-section fade-in hide max-w-6xl mx-auto">
+            <header class="mb-8">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-stone-900 mb-4">Başarı Metrikleri (KPI)</h2>
+                <p class="text-lg text-stone-600 leading-relaxed">Uygulamanın canlıya alındıktan sonra performansını ölçeceğimiz kritik metrikler. Başarı, sadece uygulamanın çalışmasıyla değil, hedeflenen veri dönüşümleriyle kanıtlanacaktır.</p>
+            </header>
+
+            <div class="grid md:grid-cols-2 gap-8 items-start">
+                
+                <!-- KPI 1: Dönüşüm Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <div class="mb-4 text-center">
+                        <span class="text-3xl inline-block mb-2">&#x1F517;</span>
+                        <h3 class="text-xl font-bold text-stone-800">Landing Page Dönüşümü</h3>
+                        <p class="text-sm text-stone-500">Hedef: Ziyaretçilerin > %20'sinin Auth (Giriş) sürecini tamamlaması.</p>
+                    </div>
+                    <!-- CHART CONTAINER (Strictly styled) -->
+                    <div class="chart-container">
+                        <canvas id="kpiConversionChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Hız ve Başarı Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <div class="mb-4 text-center">
+                        <span class="text-3xl inline-block mb-2">&#x23F1;&#xFE0F;</span>
+                        <h3 class="text-xl font-bold text-stone-800">Ekip Kurma Hızı (Time to Hire)</h3>
+                        <p class="text-sm text-stone-500">Hedef: Bir ekibin "Full" kapasiteye ulaşma süresinin 48 saatin altında kalması.</p>
+                    </div>
+                    <!-- CHART CONTAINER (Strictly styled) -->
+                    <div class="chart-container">
+                        <canvas id="kpiTimeChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Kabul Kriterleri List -->
+            <div class="mt-10 bg-indigo-50 p-6 md:p-8 rounded-2xl border border-indigo-100">
+                <h3 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center gap-2">&#x2705; Temel Kabul Kriterleri (Acceptance Criteria)</h3>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <div class="font-bold text-stone-800 mb-1">AC.01: Skor Doğruluğu</div>
+                        <p class="text-sm text-stone-600">Kullanıcı profili ve ilan tags arasındaki kesişim kümesi % olarak anlık hesaplanmalı ve UI'da gösterilmelidir.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <div class="font-bold text-stone-800 mb-1">AC.02: Responsive Davranış</div>
+                        <p class="text-sm text-stone-600">Ekran 768px altına düştüğünde "Side-Panel" akıllıca "Bottom-Sheet" formuna dönmelidir.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <div class="font-bold text-stone-800 mb-1">AC.03: Başvuru Limiti</div>
+                        <p class="text-sm text-stone-600">Kullanıcı 3 aktif başvurudayken "Katıl" butonu disabled olmalı ve limit uyarısı vermelidir.</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Application Logic -->
+    <script>
+        // --- 1. STATE & DATA MANAGEMENT ---
+        const prdData = {
+            stories: [
+                { id: "US.01", persona: "Öğrenci", req: "Web üzerinden hızlıca yeteneklerimi seçerek profil oluşturmak istiyorum.", value: "Sistemde uzmanlık alanıma göre anında görünür olmak.", icon: "&#x1F393;" },
+                { id: "US.02", persona: "Öğrenci", req: "Ana sayfada (Feed) yeteneklerime en uygun projeleri 'Eşleşme Oranı' ile görmek istiyorum.", value: "Manuel arama yapmadan bana en uygun fırsata odaklanmak.", icon: "&#x1F50D;" },
+                { id: "US.03", persona: "Ekip Lideri", req: "Başvuranların yetenek setlerini ve portfolyolarını web panelinde incelemek istiyorum.", value: "Ekibime en uygun teknik profili seçmek.", icon: "&#x1F464;" },
+                { id: "US.04", persona: "Kullanıcı", req: "Başvurum onaylandığında tarayıcı bildirimi veya e-posta ile haberdar olmak istiyorum.", value: "Süreçten kopmamak ve aksiyon almak.", icon: "&#x1F514;" }
+            ]
+        };
+
+        const state = {
+            currentTab: 'sec-vizyon',
+            currentFilter: 'all',
+            chartsRendered: false
+        };
+
+        // --- 2. FUNCTIONAL NAVIGATION ---
+        const navButtons = document.querySelectorAll('.nav-btn');
+        const contentSections = document.querySelectorAll('.content-section');
+        const mobileNavSelect = document.getElementById('mobile-nav');
+
+        function switchSection(targetId) {
+            // Update State
+            state.currentTab = targetId;
+
+            // Hide all sections
+            contentSections.forEach(sec => sec.classList.add('hide'));
+            
+            // Show target section
+            const targetSec = document.getElementById(targetId);
+            if(targetSec) {
+                targetSec.classList.remove('hide');
+                // Trigger chart rendering only when KPI section is visible
+                if(targetId === 'sec-kpi' && !state.chartsRendered) {
+                    initCharts();
+                    state.chartsRendered = true;
+                }
+            }
+
+            // Update Desktop Nav UI
+            navButtons.forEach(btn => {
+                if(btn.dataset.target === targetId) {
+                    btn.classList.remove('text-stone-600', 'hover:bg-stone-100');
+                    btn.classList.add('bg-indigo-50', 'text-indigo-700');
+                } else {
+                    btn.classList.remove('bg-indigo-50', 'text-indigo-700');
+                    btn.classList.add('text-stone-600', 'hover:bg-stone-100');
+                }
+            });
+
+            // Update Mobile Select UI
+            if(mobileNavSelect.value !== targetId) {
+                mobileNavSelect.value = targetId;
+            }
+        }
+
+        // Attach listeners
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                switchSection(e.currentTarget.dataset.target);
+            });
+        });
+
+        mobileNavSelect.addEventListener('change', (e) => {
+            switchSection(e.target.value);
+        });
+
+
+        // --- 3. DYNAMIC CONTENT RENDERING (Stories) ---
+        function renderStories(filter) {
+            const container = document.getElementById('stories-container');
+            container.innerHTML = ''; // Clear
+
+            const filtered = filter === 'all' 
+                ? prdData.stories 
+                : prdData.stories.filter(s => s.persona === filter);
+
+            if(filtered.length === 0) {
+                container.innerHTML = '<p class="text-stone-500 italic p-4 text-center">Bu kriterde kayıt bulunamadı.</p>';
+                return;
+            }
+
+            filtered.forEach(story => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl shadow-sm border border-stone-200 hover:border-indigo-300 transition-colors flex flex-col md:flex-row gap-4 md:items-center fade-in";
+                
+                // Color coding based on persona
+                let badgeClass = "bg-stone-100 text-stone-600";
+                if(story.persona === "Öğrenci") badgeClass = "bg-blue-100 text-blue-700";
+                if(story.persona === "Ekip Lideri") badgeClass = "bg-purple-100 text-purple-700";
+
+                card.innerHTML = `
+                    <div class="text-3xl bg-stone-50 p-3 rounded-lg flex-shrink-0 text-center">${story.icon}</div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs font-bold text-stone-400">${story.id}</span>
+                            <span class="text-xs font-bold px-2 py-1 rounded ${badgeClass}">${story.persona}</span>
+                        </div>
+                        <p class="text-stone-800 font-medium mb-1">${story.req}</p>
+                        <p class="text-sm text-stone-500 flex items-start gap-1"><span class="text-indigo-500 font-bold">&#x21B3;</span> ${story.value}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- 4. INTERACTION LOGIC (Filters) ---
+        window.filterStories = function(persona) {
+            // Update filter UI
+            const btns = [
+                {id: 'btn-filter-all', val: 'all'},
+                {id: 'btn-filter-ogrenci', val: 'Öğrenci'},
+                {id: 'btn-filter-lider', val: 'Ekip Lideri'},
+                {id: 'btn-filter-kullanici', val: 'Kullanıcı'}
+            ];
+
+            btns.forEach(b => {
+                const el = document.getElementById(b.id);
+                if(b.val === persona) {
+                    el.classList.remove('text-stone-600', 'hover:bg-stone-100');
+                    el.classList.add('bg-indigo-600', 'text-white');
+                } else {
+                    el.classList.remove('bg-indigo-600', 'text-white');
+                    el.classList.add('text-stone-600', 'hover:bg-stone-100');
+                }
+            });
+
+            // Re-render
+            renderStories(persona);
+        };
+
+
+        // --- 5. DATA VISUALIZATION (Chart.js) ---
+        function initCharts() {
+            // Chart Defaults for clean styling
+            Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+            Chart.defaults.color = '#57534e'; // stone-600
+            
+            // 1. Conversion Doughnut Chart
+            const ctxConv = document.getElementById('kpiConversionChart').getContext('2d');
+            new Chart(ctxConv, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Başarılı Giriş Yapanlar', 'Siteden Ayrılanlar'],
+                    datasets: [{
+                        data: [25, 75], // Assuming current expected is slightly above the 20% target
+                        backgroundColor: ['#4f46e5', '#e5e7eb'], // indigo-600, stone-200
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Critical for container adherence
+                    cutout: '75%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return ' ' + context.label + ': %' + context.raw; }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'textCenter',
+                    beforeDraw: function(chart) {
+                        var width = chart.width, height = chart.height, ctx = chart.ctx;
+                        ctx.restore();
+                        var fontSize = (height / 120).toFixed(2);
+                        ctx.font = "bold " + fontSize + "em sans-serif";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = "#4f46e5";
+                        var text = "Hedef > %20",
+                            textX = Math.round((width - ctx.measureText(text).width) / 2),
+                            textY = height / 2 - 10; // offset slightly up due to legend
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+
+            // 2. Time to Hire Bar Chart
+            const ctxTime = document.getElementById('kpiTimeChart').getContext('2d');
+            new Chart(ctxTime, {
+                type: 'bar',
+                data: {
+                    labels: ['Mevcut Durum (Tahmini)', 'Teamflow Hedefi', 'Optimize Senaryo'],
+                    datasets: [{
+                        label: 'Saat (Kapasite Dolum Süresi)',
+                        data: [120, 48, 24],
+                        backgroundColor: [
+                            '#fca5a5', // rose-300 (Bad)
+                            '#4f46e5', // indigo-600 (Target)
+                            '#34d399'  // emerald-400 (Optimal)
+                        ],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Critical for container adherence
+                    indexAxis: 'y', // Horizontal bar
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return context.raw + ' Saat'; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { display: true, color: '#f5f5f4' },
+                            title: { display: true, text: 'Süre (Saat)' }
+                        },
+                        y: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- 6. INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderStories('all');
+            // Default tab is set in HTML, just ensuring JS state matches
+            state.currentTab = 'sec-vizyon';
+        });
+
+    </script>
+</body>
+</html>
