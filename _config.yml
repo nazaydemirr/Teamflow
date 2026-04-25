@@ -1,0 +1,18 @@
+title: Teamflow
+description: Week 1 docs (plan & progress)
+theme: jekyll-theme-primer
+
+# GitHub Pages/Jekyll build should NOT traverse app code or node_modules.
+exclude:
+  - apps/
+  - services/
+  - node_modules/
+  - vendor/
+  - Gemfile
+  - Gemfile.lock
+  - package.json
+  - package-lock.json
+  - pnpm-lock.yaml
+  - yarn.lock
+  - "**/node_modules/**"
+
