@@ -1,74 +1,19 @@
-const express = require("express");
-const cors = require("cors");
-const { z } = require("zod");
+export type Opportunity = {
+  id: string;
+  title: string;
+  matchPercent: number;
+  author: string;
+  authorInitials: string;
+  tags: string[];
+  deadline: string;
+  membersCurrent: number;
+  membersMax: number;
+  description: string;
+  teams: { name: string; full: boolean }[];
+};
 
-// Firebase Admin (token doğrulama + Firestore erişimi)
-// Bu dosyada sadece auth middleware'i tanımlıyoruz.
-// Gerçek ortamda GOOGLE_APPLICATION_CREDENTIALS veya ADC ile çalışır.
-const admin = require("firebase-admin");
-
-function ensureFirebaseAdmin() {
-  if (admin.apps.length) return;
-  admin.initializeApp();
-}
-
-function sendError(res, statusCode, code, message, details) {
-  const body = { code, message };
-  if (details !== undefined) body.details = details;
-  res.status(statusCode).json(body);
-}
-
-async function authMiddleware(req, res, next) {
-  const auth = req.header("authorization") || "";
-  if (!auth.startsWith("Bearer ")) {
-    return sendError(res, 401, "UNAUTHENTICATED", "Missing Bearer token");
-  }
-  const token = auth.slice("Bearer ".length).trim();
-  if (!token) {
-    return sendError(res, 401, "UNAUTHENTICATED", "Empty Bearer token");
-  }
-
-  try {
-    ensureFirebaseAdmin();
-    const decoded = await admin.auth().verifyIdToken(token);
-    req.user = { uid: decoded.uid };
-    return next();
-  } catch (err) {
-    return sendError(res, 401, "UNAUTHENTICATED", "Invalid token");
-  }
-}
-
-const app = express();
-
-app.use(
-  cors({
-    origin: "*",
-    allowedHeaders: ["authorization", "content-type"],
-    methods: ["GET", "POST", "PATCH", "OPTIONS"],
-  }),
-);
-app.use(express.json());
-
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
-});
-
-app.get("/me", authMiddleware, async (req, res) => {
-  res.json({ uid: req.user.uid, skills: [] });
-});
-
-// Örnek: request validation formatı (ileride PATCH /me için kullanılacak)
-const exampleSchema = z.object({ example: z.string().min(1) });
-app.post("/_validate-example", (req, res) => {
-  const parsed = exampleSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return sendError(res, 400, "VALIDATION_ERROR", "Invalid request body", parsed.error.flatten());
-  }
-  return res.json({ ok: true });
-});
-
-/** Feed listesi — imleç = bir sonraki kaydın dizinini temsil eden opak offset (cursor-based pagination MVP) */
-const OPPORTUNITIES = [
+/** MVP ilan listesi — services/api/server.js ile aynı veri; Next /api ve harici API ile paylaşılır. */
+export const OPPORTUNITIES: Opportunity[] = [
   {
     id: "1",
     title: "AI Destekli Tarım Projesi",
@@ -113,8 +58,7 @@ const OPPORTUNITIES = [
     deadline: "1 Mayıs 2024",
     membersCurrent: 4,
     membersMax: 4,
-    description:
-      "Küçük kurs oluşturucular için video ve quiz destekli minimal öğrenme yönetim sistemi.",
+    description: "Küçük kurs oluşturucular için video ve quiz destekli minimal öğrenme yönetim sistemi.",
     teams: [{ name: "Core", full: true }],
   },
   {
@@ -127,8 +71,7 @@ const OPPORTUNITIES = [
     deadline: "10 Mayıs 2024",
     membersCurrent: 1,
     membersMax: 3,
-    description:
-      "Repoyu tarayıp dokümantasyon önerileri ve PR açıklamaları üreten CLI ve web arayüzü.",
+    description: "Repoyu tarayıp dokümantasyon önerileri ve PR açıklamaları üreten CLI ve web arayüzü.",
     teams: [
       { name: "Docs", full: false },
       { name: "ML", full: false },
@@ -158,7 +101,10 @@ const OPPORTUNITIES = [
     membersCurrent: 3,
     membersMax: 4,
     description: "Ham logları normalize ederek analitik için Parquet formatına dönüştüren planlı işler.",
-    teams: [{ name: "Data", full: false }, { name: "Infra", full: false }],
+    teams: [
+      { name: "Data", full: false },
+      { name: "Infra", full: false },
+    ],
   },
   {
     id: "7",
@@ -197,7 +143,10 @@ const OPPORTUNITIES = [
     membersCurrent: 4,
     membersMax: 5,
     description: "Ekiplerin runbook ve ADR yazabileceği arama dostu dahili dokümantasyon sitesi.",
-    teams: [{ name: "Platform", full: false }, { name: "DX", full: true }],
+    teams: [
+      { name: "Platform", full: false },
+      { name: "DX", full: true },
+    ],
   },
   {
     id: "10",
@@ -223,7 +172,10 @@ const OPPORTUNITIES = [
     membersCurrent: 3,
     membersMax: 5,
     description: "Kargo ve sıcaklık sensörlerinden gelen verilerle lot bazlı uyarıların üretildiği görünüm.",
-    teams: [{ name: "Ops", full: false }, { name: "Fleet", full: false }],
+    teams: [
+      { name: "Ops", full: false },
+      { name: "Fleet", full: false },
+    ],
   },
   {
     id: "12",
@@ -240,31 +192,19 @@ const OPPORTUNITIES = [
   },
 ];
 
-/**
- * GET /opportunities?limit=…&cursor=… → { items, nextCursor }
- * cursor: sıradaki dizin (string); boş ise baştan.
- */
-app.get("/opportunities", (req, res) => {
-  const rawLimit = Number(req.query.limit);
-  const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 4, 1), 20);
+export type OpportunitiesPage = {
+  items: Opportunity[];
+  nextCursor: string | null;
+};
+
+export function getOpportunitiesPage(limit: number, cursor: string | null | undefined): OpportunitiesPage {
   let start = 0;
-  if (req.query.cursor != null && String(req.query.cursor).trim() !== "") {
-    const parsed = parseInt(String(req.query.cursor), 10);
+  if (cursor != null && String(cursor).trim() !== "") {
+    const parsed = parseInt(String(cursor), 10);
     if (!Number.isNaN(parsed) && parsed >= 0) start = parsed;
   }
   const items = OPPORTUNITIES.slice(start, start + limit);
   const nextOffset = start + items.length;
   const nextCursor = nextOffset < OPPORTUNITIES.length ? String(nextOffset) : null;
-  res.json({ items, nextCursor });
-});
-
-app.use((req, res) => {
-  sendError(res, 404, "NOT_FOUND", "Route not found", { method: req.method, path: req.path });
-});
-
-const port = Number(process.env.PORT || 8080);
-app.listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`API listening on http://localhost:${port}`);
-});
-
+  return { items, nextCursor };
+}

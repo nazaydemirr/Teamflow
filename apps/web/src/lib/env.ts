@@ -1,5 +1,6 @@
 export const env = {
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080",
+  /** Bos: ayni origin uzerinde /api/opportunities (Next Route Handler). Harici API icin or. http://localhost:8080 */
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
   firebase: {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",

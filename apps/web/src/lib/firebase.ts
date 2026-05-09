@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { env, isFirebaseConfigured } from "@/lib/env";
 
 export const firebaseApp = (() => {
@@ -14,4 +15,5 @@ export const firebaseApp = (() => {
 })();
 
 export const auth = firebaseApp ? getAuth(firebaseApp) : null;
+export const db = firebaseApp ? getFirestore(firebaseApp) : null;
 

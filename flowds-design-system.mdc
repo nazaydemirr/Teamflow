@@ -1,0 +1,24 @@
+---
+description: Always apply FlowDS design system from design-system.md
+alwaysApply: true
+---
+
+# FlowDS Design System Rule
+
+Bu projede UI/UX ile ilgili her değişiklikte `design-system.md` tek kaynak kabul edilir.
+
+## Source of Truth
+- Renkler, tipografi, spacing, grid, bileşen varyantları ve motion değerleri için yalnızca `design-system.md` kullan.
+- Belirsizlikte önce mevcut kodu ve tokenları koru; yeni değer uydurma.
+
+## Required Standards
+- **Colors:** Ana aksiyonlar `#2563EB` (Flow Blue), metin tonu `#1E293B`/`#64748B`, semantik renkler Match Green `#22C55E`, Alert Amber `#F59E0B`, Error Red `#EF4444`.
+- **Typography:** Başlıklarda Fraunces, gövde metninde DM Sans; hiyerarşi dokümandaki ölçülere göre olmalı.
+- **Spacing/Grid:** 4px tabanlı spacing sistemi ve breakpoint bazlı kolon düzeni (4/8/12) korunmalı.
+- **Components:** Buton varyantları (Primary, Secondary, Outline, Ghost, Danger, Success), badge/pill yapıları, kart ve form davranışları dokümanla uyumlu olmalı.
+- **Motion:** Geçişlerde `cubic-bezier(0.16, 1, 0.3, 1)` ve dokümandaki süre skalası (120/200/350ms) kullanılmalı.
+
+## Implementation Guidance
+- Mümkünse sabit değer yerine token/CSS variable kullan (`--flow-blue`, `--font-display`, `--radius-md`, `--ease` vb.).
+- Yeni UI eklenirken mevcut sistemle tutarlılığı bozacak farklı radius, renk veya animasyon ekleme.
+- Design system dışına çıkmak gerekiyorsa, değişiklik notunda gerekçe belirt.
