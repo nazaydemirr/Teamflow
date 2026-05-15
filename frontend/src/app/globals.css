@@ -1,0 +1,207 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --flow-blue: #2563eb;
+  --soft-slate: #f8fafc;
+  --text-navy: #020617;
+  --text-slate: #334155;
+  --error-red: #ef4444;
+  --surface: #ffffff;
+  --ring: rgba(37, 99, 235, 0.2);
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --duration: 200ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --background: var(--soft-slate);
+  --foreground: var(--text-navy);
+
+  --skill-tag-bg: #ffffff;
+  --skill-tag-border: #cbd5e1;
+  --skill-tag-text: var(--text-navy);
+  
+  --skill-badge-bg: #f1f5f9;
+  --skill-badge-text: var(--text-slate);
+
+  /* Feed / gece kabuğu (artık açık moda uyarlı) */
+  --night-canvas: var(--soft-slate);
+  --night-header: rgba(255, 255, 255, 0.88);
+  --night-panel: var(--surface);
+  --night-surface: var(--surface);
+  --night-card: var(--surface);
+  --night-card-hover: var(--soft-slate);
+  --night-elevated: var(--surface);
+  --night-input: var(--soft-slate);
+  --night-border: rgba(148, 163, 184, 0.3);
+  --night-border-strong: rgba(148, 163, 184, 0.5);
+  --night-text: var(--text-navy);
+  --night-text-secondary: var(--text-slate);
+  --night-text-dim: #64748b;
+  --night-glow-blue: rgba(59, 130, 246, 0.14);
+  --night-glow-violet: rgba(129, 140, 248, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-dm-sans);
+  --font-display: var(--font-fraunces);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-dm-sans), sans-serif;
+}
+
+/* Landing — acik tema */
+.landing-page-bg {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -25%, rgba(37, 99, 235, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 100% 5%, rgba(99, 102, 241, 0.1), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 0% 80%, rgba(16, 185, 129, 0.06), transparent 45%);
+}
+
+html.dark .landing-page-bg {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 95% 60% at 50% -30%, rgba(59, 130, 246, 0.18), transparent 58%),
+    radial-gradient(ellipse 75% 50% at 100% 0%, rgba(129, 140, 248, 0.12), transparent 52%),
+    radial-gradient(ellipse 55% 40% at -5% 90%, rgba(16, 185, 129, 0.07), transparent 48%),
+    radial-gradient(ellipse 80% 60% at 50% 120%, rgba(15, 23, 42, 0.85), transparent 55%);
+}
+
+.landing-grid-mask {
+  background-image: linear-gradient(
+      to right,
+      rgba(100, 116, 139, 0.06) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(100, 116, 139, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+}
+
+html.dark .landing-grid-mask {
+  background-image: linear-gradient(
+      to right,
+      rgba(148, 163, 184, 0.055) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.055) 1px, transparent 1px);
+}
+
+/* Süper Koyu Mod (Premium iOS Style) */
+html.dark {
+  color-scheme: dark;
+  --background: #000000;
+  --soft-slate: #000000;
+  --surface: #121212;
+  --surface-raised: #1c1c1e;
+  --text-navy: #ffffff;
+  --text-slate: #a1a1aa;
+  --foreground: #ffffff;
+  --ring: rgba(96, 165, 250, 0.38);
+  --flow-blue: #3b82f6;
+
+  --skill-tag-bg: transparent;
+  --skill-tag-border: rgba(255, 255, 255, 0.2);
+  --skill-tag-text: #cbd5e1;
+  
+  --skill-badge-bg: rgba(255, 255, 255, 0.1);
+  --skill-badge-text: #e2e8f0;
+
+  --night-canvas: #070a0f;
+  --night-header: rgba(7, 10, 15, 0.88);
+  --night-panel: #0c1118;
+  --night-surface: #111a28;
+  --night-card: #162236;
+  --night-card-hover: #1a2c45;
+  --night-elevated: #1e3250;
+  --night-input: #0a1018;
+  --night-border: rgba(148, 163, 184, 0.12);
+  --night-border-strong: rgba(148, 163, 184, 0.2);
+  --night-text: #e8edf5;
+  --night-text-secondary: #9fb0ca;
+  --night-text-dim: #6d7f99;
+}
+
+html.dark body {
+  background: var(--background);
+  background-image: none;
+}
+
+html.dark ::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: #f8fafc;
+}
+
+/* Fırsat akışı uyumluluğu */
+.tf-feed {
+  min-height: 100dvh;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.tf-feed-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html.dark .tf-feed-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.tf-feed-card {
+  background: var(--surface);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+}
+
+html.dark .tf-feed-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.tf-feed-card:hover {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: var(--soft-slate);
+}
+
+html.dark .tf-feed-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface-raised);
+}
+
+.tf-feed-card-selected {
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25), 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+html.dark .tf-feed-card-selected {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+}
+
+.tf-feed-inset {
+  background: var(--soft-slate);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+html.dark .tf-feed-inset {
+  background: var(--background);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tf-feed-sheet {
+  background: var(--surface);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+html.dark .tf-feed-sheet {
+  border-color: rgba(255, 255, 255, 0.1);
+}

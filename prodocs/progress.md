@@ -173,3 +173,31 @@ Bu dosya, chat içinde bugune kadar yapilan kod degisikliklerini ve teknik karar
 
 **Sinir:** Gercek e-posta/Katil yazimi Firestore’a production API ile baglaninca kalici backend dogrulanir; MVP’de katilim ve lider aksiyonlari tarayicide saklanır.
 
+### 11) UI/UX, Takim Merkezi ve Premium Karanlık Tema Geliştirmeleri
+
+- **Süper Koyu Mod (Premium Dark Mode):** 
+  - Uygulama genelindeki arka plan rengi `html.dark` değişkenleri ile saf siyaha (`#000000`) çevrildi.
+  - Sabit `bg-white` sınıfları yerine CSS `var(--surface)` kullanılarak açık/koyu modlar arası sorunsuz geçiş sağlandı.
+  - Kart ve panellerin koyu modda uyumsuz olan kenarlıkları (`border-slate-200`) `dark:border-white/10` ile yumuşatıldı.
+- **Karanlık Tema Kalıcılık ve Senkronizasyon Hata Giderimleri:**
+  - `ThemeToggle` adında ortak bir bileşen (component) oluşturuldu ve tüm sayfalardaki (Profil, Feed, Lider Paneli) gezinme çubuklarına yerleştirildi.
+  - Sayfa yenilendiğinde oluşan parlama (FOUC) hatası, `app/layout.tsx` içine yerleştirilen küçük bir yükleme-öncesi script ile çözüldü.
+  - Aynı tarayıcıdaki farklı sekmeler (tabs) arası tema geçişi `StorageEvent` (localStorage dinleyicisi) ile canlı olarak senkronize edildi.
+- **Yenilenmiş Takım Merkezi (Ekiplerim):**
+  - Profil sayfasındaki `MyTeamsManager` bileşeni "Ekiplerim" ana çerçevesine alındı.
+  - Akordeon (açılır-kapanır) mantığı eklendi ve varsayılan olarak tüm takımların kapalı tutulabilmesi sağlandı.
+  - Takım detayları İkili Panel Layout'una geçirildi: Sol tarafta takım üyeleri (yalnızca lider manuel olarak Profile ID ile ekleyip çıkarabilir), sağ tarafta gerçek zamanlı `localStorage` tabanlı ekip sohbet odası konumlandırıldı.
+- **Bildirim ve Başvuru Yönetimi (Silme İşlemleri):**
+  - `lib/notifications.ts` içerisine `deleteNotification(id)` fonksiyonu eklendi.
+  - `NotificationBell` (Bildirim Zili) menüsündeki her bir bildirim öğesinin yanına kırmızı 'X' (Sil) butonu eklendi.
+  - Lider paneli `SwipeableApplicationRow` yapısındaki kaydırma özelliğine ek olarak, kullanım kolaylığı için satır sonuna görünür bir 'X' (Sil) butonu yerleştirildi.
+
+### 12) Fırsat Akışı Arama ve Yetenek Görünüm Düzeltmeleri
+
+- **Yetenek Etiketleri Renk Yönetimi (Koyu Mod Düzeltmesi):**
+  - Tailwind v4'ün `@custom-variant` gereksiniminden doğan koyu mod hatalarını kökünden çözmek için, `SkillTagPicker` ve yetenek rozetleri tamamen CSS Değişkenlerine (`--skill-tag-bg`, `--skill-tag-border` vb.) taşındı.
+  - Bu sayede seçili olmayan yetenek butonlarının içi beyaz/okunaksız kalma hatası, işletim sistemi temasından bağımsız olarak tamamen düzeltildi.
+- **Fırsat Akışı Arama Çubuğu (Search Bar):**
+  - Fırsat Akışı (`/feed`) sayfasına büyüteç ikonlu açılır kapanır bir arama çubuğu eklendi.
+  - Aramalar eşzamanlı olarak Fırsat Başlığı, Şirket Adı ve Etiketlerde (Tags) filtreleme yapıyor.
+  - Klasik `toLowerCase` yerine `toLocaleLowerCase('tr-TR')` kullanılarak büyük/küçük harf (case-insensitive) aramalarında yaşanan "I/ı", "İ/i" Türkçe karakter sorunları çözüldü. Boş şirket (`company: undefined`) alanlarında yaşanan çökme (crash) için güvenli (fallback) kontroller eklendi.

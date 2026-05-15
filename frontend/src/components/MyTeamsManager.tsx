@@ -1,0 +1,284 @@
+"use client";
+
+import { useApplications } from "@/hooks/useApplications";
+import { useTeamChat } from "@/hooks/useTeamChat";
+import { addApprovedMember, deleteApplication } from "@/lib/applications";
+import { OPPORTUNITIES, type Opportunity } from "@/lib/opportunities-data";
+import { sendChatMessage } from "@/lib/chats";
+import { useMemo, useState, useEffect } from "react";
+
+function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; userFullName: string; currentProfileId: string }) {
+  const { messages } = useTeamChat(oppId);
+  const [text, setText] = useState("");
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-slate-200 p-4 dark:border-white/10">
+        <h4 className="font-semibold text-[var(--text-navy)] dark:text-slate-100 flex items-center gap-2">
+          <svg className="size-5 text-[var(--text-slate)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Ekip Sohbet Odasi
+        </h4>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4 min-h-[250px] bg-slate-50 dark:bg-[var(--background)]">
+        {messages.length === 0 ? (
+          <div className="m-auto text-center">
+            <svg className="mx-auto mb-3 size-12 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <p className="text-sm font-semibold text-[var(--text-navy)] dark:text-slate-200">Sohbet henuz bos</p>
+            <p className="mt-1 text-xs text-[var(--text-slate)]">Ilk mesaji gondererek ekibinle fikir alisverisine basla!</p>
+          </div>
+        ) : (
+          messages.map((m) => {
+            const isMe = m.senderId === currentProfileId;
+            return (
+              <div key={m.id} className={`flex max-w-[85%] flex-col ${isMe ? "self-end" : "self-start"}`}>
+                <span className={`mb-0.5 text-[10px] ${isMe ? "text-right text-[var(--flow-blue)]" : "text-left text-[var(--text-slate)]"}`}>
+                  {isMe ? "Sen" : m.senderName}
+                </span>
+                <div
+                  className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                    isMe
+                      ? "rounded-tr-sm bg-[var(--flow-blue)] text-white"
+                      : "rounded-tl-sm bg-[var(--surface-raised)] border border-slate-200 text-[var(--text-navy)] dark:border-white/10"
+                  }`}
+                >
+                  {m.text}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div className="p-4 bg-slate-50 dark:bg-black/20 border-t border-slate-200 dark:border-white/10">
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && text.trim()) {
+                sendChatMessage({ teamId: oppId, senderId: currentProfileId, senderName: userFullName, text: text.trim() });
+                setText("");
+              }
+            }}
+            placeholder="Takimina bir mesaj yaz..."
+            className="w-full rounded-full border border-slate-300 bg-white py-2.5 pl-4 pr-12 text-sm shadow-sm outline-none focus:border-[var(--flow-blue)] dark:border-white/20 dark:bg-[var(--surface-raised)]"
+          />
+          <button
+            onClick={() => {
+              if (text.trim()) {
+                sendChatMessage({ teamId: oppId, senderId: currentProfileId, senderName: userFullName, text: text.trim() });
+                setText("");
+              }
+            }}
+            className="absolute right-1.5 flex size-8 items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+          >
+            <svg className="size-4 -ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function MyTeamsManager({ userFullName }: { userFullName: string }) {
+  const { applications, refresh } = useApplications();
+  const [addingMemberToOpp, setAddingMemberToOpp] = useState<string | null>(null);
+  const [newMemberId, setNewMemberId] = useState("");
+  const [profileId, setProfileId] = useState("");
+  const [openAccordionId, setOpenAccordionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = localStorage.getItem("teamflow_profile_id");
+    if (id) setProfileId(id);
+  }, []);
+
+  const ledTeams = useMemo(() => {
+    return OPPORTUNITIES.filter((opp) => opp.author === userFullName);
+  }, [userFullName]);
+
+  const joinedTeams = useMemo(() => {
+    const approvedApps = applications.filter(a => a.status === "Onaylandi" && a.applicantLabel === userFullName);
+    const oppIds = new Set(approvedApps.map(a => a.oppId));
+    return OPPORTUNITIES.filter(opp => oppIds.has(opp.id) && opp.author !== userFullName);
+  }, [applications, userFullName]);
+
+  const allTeams = [...ledTeams.map(t => ({...t, isLeader: true})), ...joinedTeams.map(t => ({...t, isLeader: false}))];
+
+  if (allTeams.length === 0) {
+    return (
+      <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-4 shadow-sm sm:p-5 dark:border-white/10">
+        <h2 className="mb-4 text-xl font-semibold text-[var(--text-navy)] dark:text-slate-100">Ekiplerim</h2>
+        <p className="text-sm text-[var(--text-slate)]">Henuz lideri oldugunuz veya uye oldugunuz bir takim yok.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-4 shadow-sm sm:p-5 dark:border-white/10">
+      <h2 className="mb-4 text-xl font-semibold text-[var(--text-navy)] dark:text-slate-100">Ekiplerim</h2>
+      <div className="space-y-4">
+      {allTeams.map((opp) => {
+        const isLeader = opp.isLeader;
+        const members = applications.filter((a) => a.oppId === opp.id && a.status === "Onaylandi");
+        const isOpen = openAccordionId === opp.id;
+
+        return (
+          <div key={opp.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-[var(--surface)] shadow-sm dark:border-white/10">
+            {/* Accordion Header */}
+            <div 
+              className="flex cursor-pointer items-center justify-between p-4 sm:p-5"
+              onClick={() => setOpenAccordionId(isOpen ? null : opp.id)}
+            >
+              <div>
+                <span className="mb-2 inline-block rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                  {isLeader ? "AKTIF PROJE TAKIMI (LIDER)" : "AKTIF PROJE TAKIMI (UYE)"}
+                </span>
+                <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-navy)] dark:text-slate-100">{opp.title}</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                {isLeader && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAddingMemberToOpp(opp.id);
+                      setOpenAccordionId(opp.id);
+                    }}
+                    className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
+                  >
+                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    Uye Ekle
+                  </button>
+                )}
+                <svg className={`size-6 text-[var(--text-slate)] transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Accordion Content */}
+            {isOpen && (
+              <div className="bg-[#314361] p-4 sm:p-6 dark:bg-black/40">
+                {/* Uye Ekleme Modulu */}
+                {isLeader && addingMemberToOpp === opp.id && (
+                  <div className="mb-4 rounded-xl bg-white p-4 shadow-md dark:bg-[var(--surface-raised)]">
+                    <p className="mb-3 text-sm font-semibold text-[var(--text-navy)] dark:text-slate-100">Profil ID ile Uye Ekle</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Orn: TF-1234"
+                        value={newMemberId}
+                        onChange={(e) => setNewMemberId(e.target.value)}
+                        className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-white/20 dark:bg-black/20"
+                      />
+                      <button
+                        onClick={() => {
+                          if (!newMemberId.trim()) return;
+                          addApprovedMember({
+                            oppId: opp.id,
+                            oppTitle: opp.title,
+                            teamName: opp.teams[0]?.name || "Genel",
+                            applicantLabel: `Kullanici (${newMemberId.trim()})`,
+                            applicantSkills: ["-"],
+                          });
+                          setNewMemberId("");
+                          setAddingMemberToOpp(null);
+                          refresh();
+                        }}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+                      >
+                        Ekle
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAddingMemberToOpp(null);
+                          setNewMemberId("");
+                        }}
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[var(--text-navy)] hover:bg-slate-50 dark:border-white/20 dark:bg-transparent dark:text-slate-200"
+                      >
+                        Iptal
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Iki Sutunlu Layout: Sol Uyeler, Sag Sohbet */}
+                <div className="grid gap-4 md:grid-cols-[300px_1fr] lg:grid-cols-[350px_1fr]">
+                  {/* Sol: Uyeler */}
+                  <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10">
+                    <div className="border-b border-slate-200 p-4 dark:border-white/10">
+                      <h4 className="font-semibold text-[var(--text-navy)] dark:text-slate-100 flex items-center gap-2">
+                        <svg className="size-5 text-[var(--text-slate)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        Takim Arkadaslarin
+                      </h4>
+                    </div>
+                    <div className="flex-1 p-4">
+                      {members.length === 0 ? (
+                        <div className="flex h-full flex-col items-center justify-center text-center">
+                          <div className="mb-4 grid size-20 place-items-center rounded-full border-[3px] border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+                            <svg className="size-10 text-slate-300 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                          </div>
+                          <p className="font-bold text-[var(--text-navy)] dark:text-slate-100">Henuz onayli uye yok</p>
+                          <p className="mt-2 text-sm text-[var(--text-slate)]">Projeye arkadaslarini davet ederek sinerji yarat!</p>
+                        </div>
+                      ) : (
+                        <ul className="space-y-3">
+                          {members.map((m) => (
+                            <li key={m.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-black/20">
+                              <div className="flex items-center gap-3">
+                                <div className="grid size-10 place-items-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                  {m.applicantLabel.slice(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-[var(--text-navy)] dark:text-slate-200">{m.applicantLabel}</p>
+                                  <p className="text-xs text-[var(--text-slate)] dark:text-slate-400">Takim: {m.teamName}</p>
+                                </div>
+                              </div>
+                              {isLeader && (
+                                <button
+                                  onClick={() => {
+                                    deleteApplication(m.id);
+                                    refresh();
+                                  }}
+                                  className="rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                                >
+                                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div className="border-t border-slate-100 p-3 text-center dark:border-white/5">
+                      <p className="text-xs font-medium text-[var(--text-slate)]">Olusturulma: 16 Mayis 2026</p>
+                    </div>
+                  </div>
+
+                  {/* Sag: Sohbet */}
+                  <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10">
+                    <TeamChat oppId={opp.id} userFullName={userFullName} currentProfileId={profileId} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      </div>
+    </div>
+  );
+}
