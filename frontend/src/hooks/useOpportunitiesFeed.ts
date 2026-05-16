@@ -1,16 +1,24 @@
 "use client";
 
-import type { OpportunitiesPage, Opportunity } from "@/lib/opportunities-data";
+import { getOpportunitiesPage, type OpportunitiesPage, type Opportunity } from "@/lib/opportunities-data";
 import { apiGet } from "@/lib/api";
 import { env } from "@/lib/env";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type { Opportunity, OpportunitiesPage } from "@/lib/opportunities-data";
 
-const DEFAULT_LIMIT = 4;
+const DEFAULT_LIMIT = 12;
 const LOAD_MORE_THRESHOLD = 0.8;
 
-async function fetchOpportunitiesPage(cursor: string | null, limit = DEFAULT_LIMIT) {
+async function fetchOpportunitiesPage(cursor: string | null, limit = DEFAULT_LIMIT): Promise<OpportunitiesPage> {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(getOpportunitiesPage(limit, cursor));
+      }, 50); // Simulate network latency
+    });
+  }
+
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set("cursor", cursor);
   const qs = params.toString();

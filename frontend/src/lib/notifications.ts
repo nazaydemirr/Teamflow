@@ -1,3 +1,5 @@
+import { apiGet, apiPatch, apiDelete } from "@/lib/api";
+
 export type StoredNotification = {
   id: string;
   message: string;
@@ -5,14 +7,14 @@ export type StoredNotification = {
   createdAt: string;
 };
 
-const STORAGE_KEY = "teamflow_notifications_v1";
-
 export function broadcastNotificationsUpdated() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event("teamflow-notifications"));
 }
 
-export function listNotifications(): StoredNotification[] {
+const STORAGE_KEY = "teamflow_notifications_v1";
+
+function listDemoNotifications(): StoredNotification[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -28,33 +30,80 @@ export function listNotifications(): StoredNotification[] {
   }
 }
 
-function persist(list: StoredNotification[]) {
+function persistDemoNotifications(list: StoredNotification[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   broadcastNotificationsUpdated();
 }
 
-export function addNotification(message: string): StoredNotification {
-  const row: StoredNotification = {
-    id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    message,
-    read: false,
-    createdAt: new Date().toISOString(),
-  };
-  persist([...listNotifications(), row]);
-  return row;
+export function addNotification(message: string): StoredNotification | null {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    const row: StoredNotification = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      message,
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+    persistDemoNotifications([...listDemoNotifications(), row]);
+    return row;
+  }
+  return null;
 }
 
-export function markNotificationAsRead(id: string) {
-  const list = listNotifications().map((n) => (n.id === id ? { ...n, read: true } : n));
-  persist(list);
+export async function fetchNotifications(): Promise<StoredNotification[]> {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    return listDemoNotifications();
+  }
+
+  try {
+    const data = await apiGet("/notifications") as any;
+    return data.items || [];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
 }
 
-export function markAllAsRead() {
-  const list = listNotifications().map((n) => ({ ...n, read: true }));
-  persist(list);
+export async function markNotificationAsRead(id: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    const list = listDemoNotifications().map((n) => (n.id === id ? { ...n, read: true } : n));
+    persistDemoNotifications(list);
+    return;
+  }
+
+  try {
+    await apiPatch(`/notifications/${id}/read`);
+    broadcastNotificationsUpdated();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
-export function deleteNotification(id: string) {
-  const list = listNotifications().filter((n) => n.id !== id);
-  persist(list);
+export async function markAllAsRead() {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    const list = listDemoNotifications().map((n) => ({ ...n, read: true }));
+    persistDemoNotifications(list);
+    return;
+  }
+
+  try {
+    await apiPatch("/notifications/read-all");
+    broadcastNotificationsUpdated();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+export async function deleteNotification(id: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    const list = listDemoNotifications().filter((n) => n.id !== id);
+    persistDemoNotifications(list);
+    return;
+  }
+
+  try {
+    await apiDelete(`/notifications/${id}`);
+    broadcastNotificationsUpdated();
+  } catch (err) {
+    console.error(err);
+  }
 }

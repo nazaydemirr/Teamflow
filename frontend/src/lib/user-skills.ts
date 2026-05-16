@@ -1,3 +1,5 @@
+import { apiGet, apiPatch, apiPost } from "@/lib/api";
+
 export const USER_SKILLS_STORAGE_KEY = "teamflow_user_skills_v1";
 
 export function broadcastSkillsUpdated() {
@@ -5,22 +7,44 @@ export function broadcastSkillsUpdated() {
   window.dispatchEvent(new Event("teamflow-user-skills"));
 }
 
-/** Firestore uyumu: düz string[] (PRD users.skills). */
-export function readStoredSkills(): string[] {
-  if (typeof window === "undefined") return [];
+export async function fetchUserSkills(): Promise<string[]> {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    try {
+      const raw = localStorage.getItem(USER_SKILLS_STORAGE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (Array.isArray(p)) return p;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  }
+
   try {
-    const raw = localStorage.getItem(USER_SKILLS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((x): x is string => typeof x === "string").map((s) => s.trim()).filter(Boolean);
+    const data = await apiGet("/me") as any;
+    return data.skills || [];
   } catch {
     return [];
   }
 }
 
-export function writeStoredSkills(skills: string[]) {
-  localStorage.setItem(USER_SKILLS_STORAGE_KEY, JSON.stringify(skills));
+export async function updateUserSkills(skills: string[]) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    localStorage.setItem(USER_SKILLS_STORAGE_KEY, JSON.stringify(skills));
+    broadcastSkillsUpdated();
+    return;
+  }
+
+  try {
+    await apiPatch("/me", { skills });
+  } catch (err: any) {
+    if (err.message && err.message.includes("bulunamadı")) {
+      await apiPost("/me", { displayName: "Kullanıcı", skills });
+    } else {
+      throw err;
+    }
+  }
   broadcastSkillsUpdated();
 }
 

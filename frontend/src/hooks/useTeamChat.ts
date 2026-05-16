@@ -1,22 +1,27 @@
-import { useEffect, useState } from "react";
-import { getChatMessages, type ChatMessage } from "@/lib/chats";
+import { useEffect, useState, useCallback } from "react";
+import { fetchChatMessages, type ChatMessage } from "@/lib/chats";
 
 export function useTeamChat(teamId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
+  const refresh = useCallback(async () => {
+    const data = await fetchChatMessages(teamId);
+    setMessages(data);
+  }, [teamId]);
+
   useEffect(() => {
-    setMessages(getChatMessages(teamId));
+    refresh();
 
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail?.teamId === teamId) {
-        setMessages(getChatMessages(teamId));
+        refresh();
       }
     };
 
     window.addEventListener("teamflow-chats-updated", handleUpdate);
     return () => window.removeEventListener("teamflow-chats-updated", handleUpdate);
-  }, [teamId]);
+  }, [teamId, refresh]);
 
   return { messages };
 }

@@ -1,9 +1,7 @@
 "use client";
 
 import { SkillTagPicker } from "@/components/SkillTagPicker";
-import { auth, db } from "@/lib/firebase";
-import { hasMinimumSkills, writeStoredSkills } from "@/lib/user-skills";
-import { doc, setDoc } from "firebase/firestore";
+import { hasMinimumSkills, fetchUserSkills, updateUserSkills } from "@/lib/user-skills";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -27,15 +25,15 @@ function OnboardingInner() {
   const canContinue = useMemo(() => hasMinimumSkills(skills, 3), [skills]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("teamflow_user_skills_v1");
-      if (raw) {
-        const p = JSON.parse(raw) as unknown;
-        if (Array.isArray(p)) setSkills(p.filter((x): x is string => typeof x === "string"));
+    let mounted = true;
+    fetchUserSkills().then((fetchedSkills) => {
+      if (mounted && Array.isArray(fetchedSkills)) {
+        setSkills(fetchedSkills);
       }
-    } catch {
-      /* ignore */
-    }
+    }).catch(() => {
+      // Ignore errors for unauthenticated demo
+    });
+    return () => { mounted = false; };
   }, []);
 
   async function onSubmit(targetRoute: string) {
@@ -43,25 +41,14 @@ function OnboardingInner() {
     setSaving(true);
     setErrorText("");
     try {
-      writeStoredSkills(skills);
+      await updateUserSkills(skills);
     } catch {
-      setErrorText("Yerel kayit basarisiz. Tarayici depolamasini kontrol edin.");
+      setErrorText("Yetenekler kaydedilemedi. Backend erisimini kontrol edin.");
       setSaving(false);
       return;
     }
 
-    const user = auth?.currentUser ?? null;
-    if (user && db) {
-      try {
-        await setDoc(
-          doc(db, "users", user.uid),
-          { skills, onboardingComplete: true, updatedAt: new Date().toISOString() },
-          { merge: true },
-        );
-      } catch (e) {
-        console.warn("[Teamflow] Firestore onboarding sync failed", e);
-      }
-    }
+
 
     router.replace(targetRoute);
     setSaving(false);

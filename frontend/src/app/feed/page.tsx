@@ -9,7 +9,6 @@ import { useApplications } from "@/hooks/useApplications";
 import { useUserSkills } from "@/hooks/useUserSkills";
 import {
   addApplication,
-  hasApplicationForTeam,
   tryBrowserNotify,
 } from "@/lib/applications";
 import { intersectionMatchPercent } from "@/lib/match-score";
@@ -424,13 +423,13 @@ function FeedPageInner() {
       if (searchQuery.trim().length > 0) {
         const q = searchQuery.toLocaleLowerCase("tr-TR");
         const tTitle = (opportunity.title || "").toLocaleLowerCase("tr-TR");
-        const tCompany = (opportunity.company || "").toLocaleLowerCase("tr-TR");
+        const tAuthor = (opportunity.author || "").toLocaleLowerCase("tr-TR");
         const tTags = opportunity.tags || [];
 
         if (
           !tTitle.includes(q) &&
-          !tCompany.includes(q) &&
-          !tTags.some((t) => (t || "").toLocaleLowerCase("tr-TR").includes(q))
+          !tAuthor.includes(q) &&
+          !tTags.some((tag) => tag.toLocaleLowerCase("tr-TR").includes(q))
         ) {
           return false;
         }
@@ -503,11 +502,11 @@ function FeedPageInner() {
   const atApplicationCap = activeCount >= 3;
 
   const handleJoinTeam = useCallback(
-    (teamName: string) => {
+    async (teamName: string) => {
       if (!selectedOpportunity || atApplicationCap) return;
-      if (hasApplicationForTeam(selectedOpportunity.id, teamName)) return;
+      if (applications.some(a => a.oppId === selectedOpportunity.id && a.teamName === teamName && a.status !== "Reddedildi")) return;
 
-      const row = addApplication({
+      const row = await addApplication({
         oppId: selectedOpportunity.id,
         oppTitle: selectedOpportunity.title,
         teamName,

@@ -60,7 +60,7 @@ function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; us
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && text.trim()) {
-                sendChatMessage({ teamId: oppId, senderId: currentProfileId, senderName: userFullName, text: text.trim() });
+                sendChatMessage(oppId, text.trim());
                 setText("");
               }
             }}
@@ -70,7 +70,7 @@ function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; us
           <button
             onClick={() => {
               if (text.trim()) {
-                sendChatMessage({ teamId: oppId, senderId: currentProfileId, senderName: userFullName, text: text.trim() });
+                sendChatMessage(oppId, text.trim());
                 setText("");
               }
             }}
@@ -179,9 +179,9 @@ export function MyTeamsManager({ userFullName }: { userFullName: string }) {
                         className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-white/20 dark:bg-black/20"
                       />
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (!newMemberId.trim()) return;
-                          addApprovedMember({
+                          await addApprovedMember({
                             oppId: opp.id,
                             oppTitle: opp.title,
                             teamName: opp.teams[0]?.name || "Genel",
@@ -247,8 +247,8 @@ export function MyTeamsManager({ userFullName }: { userFullName: string }) {
                               </div>
                               {isLeader && (
                                 <button
-                                  onClick={() => {
-                                    deleteApplication(m.id);
+                                  onClick={async () => {
+                                    await deleteApplication(m.id);
                                     refresh();
                                   }}
                                   className="rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"

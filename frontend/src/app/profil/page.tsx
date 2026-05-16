@@ -6,10 +6,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 import { SkillTagPicker } from "@/components/SkillTagPicker";
 import { groupSkillsForDisplay } from "@/lib/skills-catalog";
-import { auth, db } from "@/lib/firebase";
-import { readStoredSkills, writeStoredSkills } from "@/lib/user-skills";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { apiGet } from "@/lib/api";
+import { fetchUserSkills, updateUserSkills, hasMinimumSkills } from "@/lib/user-skills";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -65,7 +63,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<{ uid: string; displayName?: string; email?: string; photoURL?: string } | null>(null);
   const [profileId, setProfileId] = useState<string>("");
   const [isDemoSession, setIsDemoSession] = useState(false);
   const [isDemoSessionChecked, setIsDemoSessionChecked] = useState(false);
@@ -94,6 +92,13 @@ export default function ProfilePage() {
       .join("");
   }, [profile.fullName, user?.displayName, user?.email]);
 
+  async function handleLogout() {
+    localStorage.removeItem("teamflow_jwt");
+    localStorage.removeItem("teamflow_profile_id");
+    localStorage.removeItem("teamflow_demo_auth");
+    router.replace("/");
+  }
+
   useEffect(() => {
     setIsDemoSession(localStorage.getItem("teamflow_demo_auth") === "true");
     setIsDemoSessionChecked(true);
@@ -118,45 +123,31 @@ export default function ProfilePage() {
   }, [darkMode]);
 
   useEffect(() => {
-    if (!loading && isDemoSession) {
-      const s = readStoredSkills();
-      setProfile((prev) => ({ ...prev, skillList: s }));
-    }
-  }, [loading, isDemoSession]);
-
-  useEffect(() => {
     if (!isDemoSessionChecked) return;
 
-    if (!auth || !db) {
-      if (isDemoSession) {
-        setErrorText("Demo oturum aktif. Firebase baglantisi olmadan devam ediyorsunuz.");
-        setLoading(false);
-        return;
-      }
-      setErrorText("Firebase baglantisi eksik. Login sayfasina yonlendiriliyorsunuz.");
+    if (!localStorage.getItem("teamflow_jwt") && !isDemoSession) {
+      setErrorText("Giriş yapmanız gerekiyor. Login sayfasına yönlendiriliyorsunuz.");
       setLoading(false);
-      router.replace("/");
+      router.replace("/login");
       return;
     }
 
-    const firestore = db;
-    const authClient = auth;
-
-    const unsubscribe = onAuthStateChanged(authClient, async (nextUser) => {
-      setUser(nextUser);
-      if (!nextUser) {
-        if (isDemoSession) {
+    async function loadProfile() {
+      if (isDemoSession) {
+        try {
+          const s = await fetchUserSkills();
+          setProfile((prev) => ({ ...prev, skillList: s }));
+        } catch (e) {
+          // ignore
+        } finally {
           setLoading(false);
-          return;
         }
-        setLoading(false);
-        router.replace("/");
         return;
       }
 
       try {
-        const snapshot = await getDoc(doc(firestore, "users", nextUser.uid));
-        const raw = snapshot.exists() ? snapshot.data() : {};
+        const raw = (await apiGet("/me")) as any;
+        setUser({ uid: raw.uid, displayName: raw.displayName, email: raw.email });
 
         const rawApplications = Array.isArray(raw.applications) ? raw.applications : fallbackApplications;
         const rawTeams = Array.isArray(raw.teams) ? raw.teams : fallbackTeams;
@@ -170,20 +161,14 @@ export default function ProfilePage() {
           );
         }
         if (skillList.length > 0) {
-          writeStoredSkills(skillList);
+          updateUserSkills(skillList).catch(console.error);
         }
         const rawActivities = Array.isArray(raw.activities) ? raw.activities : fallbackActivities;
 
         setProfile({
-          fullName: typeof raw.fullName === "string" && raw.fullName ? raw.fullName : (nextUser.displayName ?? "Teamflow Kullanici"),
-          bio:
-            typeof raw.bio === "string" && raw.bio
-              ? raw.bio
-              : "",
-          memberSince:
-            typeof raw.memberSince === "string" && raw.memberSince
-              ? raw.memberSince
-              : "",
+          fullName: typeof raw.displayName === "string" && raw.displayName ? raw.displayName : "Teamflow Kullanici",
+          bio: typeof raw.bio === "string" && raw.bio ? raw.bio : "",
+          memberSince: typeof raw.memberSince === "string" && raw.memberSince ? raw.memberSince : "",
           skillList,
           applications: rawApplications.map((item: unknown) => {
             const candidate = item as Partial<Application>;
@@ -209,14 +194,14 @@ export default function ProfilePage() {
           }),
           activities: rawActivities.filter((item: unknown): item is string => typeof item === "string"),
         });
-      } catch {
+      } catch (e) {
         setErrorText("Profil verisi okunurken bir hata olustu.");
       } finally {
         setLoading(false);
       }
-    });
+    }
 
-    return () => unsubscribe();
+    loadProfile();
   }, [isDemoSession, isDemoSessionChecked, router]);
 
   useEffect(() => {
@@ -326,13 +311,7 @@ export default function ProfilePage() {
               </div>
               <button
                 type="button"
-                onClick={async () => {
-                  localStorage.removeItem("teamflow_demo_auth");
-                  if (auth) {
-                    await signOut(auth);
-                  }
-                  router.push("/");
-                }}
+                onClick={handleLogout}
                 className="mt-3 rounded-[var(--radius-md)] border border-slate-300 px-3 py-2 text-sm text-[var(--text-slate)]"
               >
                 Cikis Yap
@@ -374,8 +353,9 @@ export default function ProfilePage() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setModalSkills(profile.skillList.length ? profile.skillList : readStoredSkills());
+            onClick={async () => {
+                const fetched = await fetchUserSkills();
+                setModalSkills(profile.skillList.length ? profile.skillList : fetched);
                 setSkillsModalOpen(true);
               }}
               className="mt-5 rounded-[var(--radius-md)] bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] active:scale-[0.97]"
@@ -421,14 +401,8 @@ export default function ProfilePage() {
                   onClick={async () => {
                     setSavingSkills(true);
                     try {
-                      writeStoredSkills(modalSkills);
-                      if (user && db) {
-                        await setDoc(
-                          doc(db, "users", user.uid),
-                          { skills: modalSkills, updatedAt: new Date().toISOString() },
-                          { merge: true },
-                        );
-                      }
+                      await updateUserSkills(modalSkills);
+
                       setProfile((prev) => ({ ...prev, skillList: [...modalSkills] }));
                       setSkillsModalOpen(false);
                     } finally {

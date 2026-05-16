@@ -1,6 +1,6 @@
 "use client";
 
-import { setApplicationStatus, deleteApplication, tryBrowserNotify, type StoredApplication } from "@/lib/applications";
+import { decideApplication, deleteApplication, tryBrowserNotify, type StoredApplication } from "@/lib/applications";
 import { useApplications } from "@/hooks/useApplications";
 import { addNotification } from "@/lib/notifications";
 import Link from "next/link";
@@ -13,7 +13,7 @@ function SwipeableApplicationRow({
   onDelete,
 }: {
   a: StoredApplication;
-  act: (row: StoredApplication, next: StoredApplication["status"]) => void;
+  act: (row: StoredApplication, next: StoredApplication["status"]) => Promise<void>;
   onDelete: (id: string) => void;
 }) {
   const [offset, setOffset] = useState(0);
@@ -71,9 +71,9 @@ function SwipeableApplicationRow({
       <td className="flex items-center gap-2 px-4 py-3 relative">
         <button
           type="button"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            act(a, "Onaylandi");
+            await act(a, "Onaylandi");
           }}
           disabled={a.status === "Onaylandi"}
           className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40"
@@ -82,9 +82,9 @@ function SwipeableApplicationRow({
         </button>
         <button
           type="button"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            act(a, "Reddedildi");
+            await act(a, "Reddedildi");
           }}
           disabled={a.status === "Reddedildi"}
           className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-[var(--text-navy)] dark:border-white/20 dark:text-slate-200 disabled:opacity-40"
@@ -137,21 +137,30 @@ export default function LeaderApplicationsPage() {
   const { applications, refresh } = useApplications();
   const [toast, setToast] = useState<string | null>(null);
 
-  function act(row: StoredApplication, next: StoredApplication["status"]) {
-    setApplicationStatus(row.id, next);
-    refresh();
-    const msg =
-      next === "Onaylandi"
-        ? "Basvuran onaylandi (US.03 / US.04 demo)."
-        : next === "Reddedildi"
-          ? "Basvuru reddedildi."
-          : "Durum guncellendi.";
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+  async function act(row: StoredApplication, next: StoredApplication["status"]) {
+    try {
+      if (next === "Onaylandi") {
+        await decideApplication(row.id, "approve");
+      } else if (next === "Reddedildi") {
+        await decideApplication(row.id, "reject");
+      }
+      refresh();
+      const msg =
+        next === "Onaylandi"
+          ? "Basvuran onaylandi (US.03 / US.04 demo)."
+          : next === "Reddedildi"
+            ? "Basvuru reddedildi."
+            : "Durum guncellendi.";
+      setToast(msg);
+      setTimeout(() => setToast(null), 2600);
 
-    if (next === "Onaylandi") {
-      void tryBrowserNotify("Teamflow — basvuru onayi", `"${row.oppTitle}" icin talebiniz onaylandi.`);
-      addNotification(`Tebrikler! "${row.oppTitle}" ilanina yaptiginiz basvuru onaylandi ve takima kabul edildiniz.`);
+      if (next === "Onaylandi") {
+        void tryBrowserNotify("Teamflow — basvuru onayi", `"${row.oppTitle}" icin talebiniz onaylandi.`);
+        addNotification(`Tebrikler! "${row.oppTitle}" ilanina yaptiginiz basvuru onaylandi ve takima kabul edildiniz.`);
+      }
+    } catch (err) {
+      setToast("Bir hata olustu. Yetkiniz olmayabilir.");
+      setTimeout(() => setToast(null), 2600);
     }
   }
 

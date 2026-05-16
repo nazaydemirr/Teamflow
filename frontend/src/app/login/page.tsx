@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { env } from "@/lib/env";
+import { fetchUserSkills, hasMinimumSkills } from "@/lib/user-skills";
 
-export default function ForgotPasswordPage() {
+export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -17,37 +21,42 @@ export default function ForgotPasswordPage() {
     setStatusText("");
 
     const emailValue = email.trim();
-    if (!emailValue || !newPassword.trim()) {
-      setErrorText("E-posta ve yeni şifre zorunludur.");
+    if (!emailValue || !password.trim()) {
+      setErrorText("E-posta ve şifre zorunludur.");
       return;
     }
 
-    if (newPassword.length < 6) {
-      setErrorText("Şifre en az 6 karakter olmalıdır.");
-      return;
-    }
-
-    setStatusText("Şifreniz sıfırlanıyor...");
+    setStatusText("Giriş yapılıyor...");
 
     try {
       const base = (env.apiBaseUrl || "http://localhost:8080").trim().replace(/\/$/, "");
-      const res = await fetch(`${base}/auth/reset-password`, {
+      const res = await fetch(`${base}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailValue, newPassword }),
+        body: JSON.stringify({ email: emailValue, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorText(data.message || "Sıfırlama başarısız.");
+        setErrorText(data.message || "Giriş başarısız.");
         setStatusText("");
         return;
       }
 
-      setStatusText("Şifreniz başarıyla güncellendi! Giriş sayfasına dönebilirsiniz.");
-      setEmail("");
-      setNewPassword("");
+      // Save token
+      localStorage.setItem("teamflow_jwt", data.token);
+      localStorage.setItem("teamflow_profile_id", data.uid);
+      localStorage.removeItem("teamflow_demo_auth");
+
+      setStatusText("Giriş başarılı. Yönlendiriliyorsunuz...");
+
+      const skills = await fetchUserSkills();
+      if (!hasMinimumSkills(skills, 3)) {
+        router.replace("/onboarding");
+      } else {
+        router.replace("/feed");
+      }
     } catch (err) {
       setErrorText("Bağlantı hatası oluştu.");
       setStatusText("");
@@ -60,10 +69,10 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-[420px]">
           <div className="mb-10 text-center">
             <h1 className="font-[var(--font-fraunces)] text-3xl font-light text-[var(--text-navy)] dark:text-slate-100">
-              Şifremi Unuttum
+              Giriş Yap
             </h1>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Yeni şifrenizi belirlemek için bilgilerinizi girin
+              Hesabınıza giriş yaparak devam edin
             </p>
           </div>
 
@@ -77,19 +86,19 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 className="h-12 w-full rounded-[var(--radius-md)] border border-slate-200 bg-white px-4 text-[15px] text-slate-900 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-[var(--flow-blue)] focus:ring-4 focus:ring-[var(--ring)] dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
-                placeholder="Kayıtlı e-posta adresiniz"
+                placeholder="ornek@teamflow.com"
               />
             </label>
 
             <label className="block space-y-2">
               <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-navy)] dark:text-slate-300">
-                Yeni Şifre
+                Şifre
               </span>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="h-12 w-full rounded-[var(--radius-md)] border border-slate-200 bg-white pl-4 pr-12 text-[15px] text-slate-900 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-[var(--flow-blue)] focus:ring-4 focus:ring-[var(--ring)] dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                   placeholder="En az 6 karakter"
                 />
@@ -107,7 +116,7 @@ export default function ForgotPasswordPage() {
               type="submit"
               className="mt-6 flex h-12 w-full items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-r from-[var(--flow-blue)] to-indigo-600 px-6 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:brightness-105 active:scale-[0.98]"
             >
-              Şifremi Sıfırla
+              Giriş Yap
             </button>
           </form>
 
@@ -122,11 +131,17 @@ export default function ForgotPasswordPage() {
             </div>
           )}
 
-          <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            <Link href="/login" className="font-semibold text-[var(--flow-blue)] hover:underline">
-              Giriş Sayfasına Dön
+          <div className="mt-8 flex flex-col items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+            <Link href="/forgot-password" className="font-semibold text-[var(--flow-blue)] hover:underline">
+              Şifremi Unuttum
             </Link>
-          </p>
+            <p>
+              Hesabınız yok mu?{" "}
+              <Link href="/register" className="font-semibold text-[var(--flow-blue)] hover:underline">
+                Kayıt Ol
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </main>

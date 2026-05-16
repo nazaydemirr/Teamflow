@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
-  listNotifications,
+  fetchNotifications,
   type StoredNotification,
   markNotificationAsRead,
   markAllAsRead,
@@ -11,11 +11,11 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  function refresh() {
-    const list = listNotifications();
+  const refresh = useCallback(async () => {
+    const list = await fetchNotifications();
     setNotifications(list);
     setUnreadCount(list.filter((n) => !n.read).length);
-  }
+  }, []);
 
   useEffect(() => {
     refresh();

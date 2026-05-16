@@ -1,21 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getRedirectResult } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { isFirebaseConfigured } from "@/lib/env";
-import { hasMinimumSkills, readStoredSkills } from "@/lib/user-skills";
-
-function routeAfterAuth(router: ReturnType<typeof useRouter>) {
-  const skills = readStoredSkills();
-  if (!hasMinimumSkills(skills, 3)) {
-    router.replace("/onboarding");
-  } else {
-    router.replace("/feed");
-  }
-}
 
 function IconCheck({ className }: { className?: string }) {
   return (
@@ -27,18 +13,6 @@ function IconCheck({ className }: { className?: string }) {
 
 export default function Home() {
   const router = useRouter();
-
-  /** OAuth redirect genelde / adresine doner; giris UI register sayfasinda olsa da sonuc burada tamamlanir */
-  useEffect(() => {
-    if (!auth || !isFirebaseConfigured()) return;
-    void getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) routeAfterAuth(router);
-      })
-      .catch(() => {
-        /* kullanici iptal / hata */
-      });
-  }, [router]);
 
   return (
     <main className="landing-page-bg relative min-h-dvh text-[var(--text-navy)]">
@@ -80,10 +54,16 @@ export default function Home() {
                 <IconCheck className="size-3.5" />
               </span>
               <span>
-                <Link href="/register" className="font-semibold text-[var(--flow-blue)] hover:underline">
-                  Giris / Kayit
-                </Link>{" "}
-                ile Google, GitHub veya demo hesap; ardindan yetenek onboarding ile profile hazir ol.
+                <div className="flex gap-4">
+                  <Link href="/login" className="font-semibold text-[var(--flow-blue)] hover:underline">
+                    Giris Yap
+                  </Link>
+                  <span className="text-slate-300 dark:text-slate-600">|</span>
+                  <Link href="/register" className="font-semibold text-[var(--flow-blue)] hover:underline">
+                    Kayıt Ol
+                  </Link>
+                </div>
+                <span>ile kendi hesabınızı oluşturun veya demo ile deneyin.</span>
               </span>
             </li>
             <li className="flex gap-3">
@@ -105,7 +85,13 @@ export default function Home() {
               href="/register"
               className="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-r from-[var(--flow-blue)] to-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:brightness-105 active:scale-[0.98]"
             >
-              Giris / Kayit
+              Hemen Kayıt Ol
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.98] dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Giriş Yap
             </Link>
           </div>
         </section>
