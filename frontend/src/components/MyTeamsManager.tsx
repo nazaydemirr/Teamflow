@@ -86,12 +86,25 @@ function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; us
   );
 }
 
-export function MyTeamsManager({ userFullName }: { userFullName: string }) {
+export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { userFullName: string; focusTeamId?: string | null; onFocusClear?: () => void }) {
   const { applications, refresh } = useApplications();
   const [addingMemberToOpp, setAddingMemberToOpp] = useState<string | null>(null);
   const [newMemberId, setNewMemberId] = useState("");
   const [profileId, setProfileId] = useState("");
   const [openAccordionId, setOpenAccordionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (focusTeamId) {
+      setOpenAccordionId(focusTeamId);
+      onFocusClear?.();
+      
+      // Scroll to the accordion gently
+      setTimeout(() => {
+        const el = document.getElementById(`team-accordion-${focusTeamId}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [focusTeamId, onFocusClear]);
 
   useEffect(() => {
     const id = localStorage.getItem("teamflow_profile_id");
@@ -103,7 +116,7 @@ export function MyTeamsManager({ userFullName }: { userFullName: string }) {
   }, [userFullName]);
 
   const joinedTeams = useMemo(() => {
-    const approvedApps = applications.filter(a => a.status === "Onaylandi" && a.applicantLabel === userFullName);
+    const approvedApps = applications.filter(a => a.status === "Onaylandi" && (a.applicantLabel === userFullName || a.applicantLabel === "Demo kullanici"));
     const oppIds = new Set(approvedApps.map(a => a.oppId));
     return OPPORTUNITIES.filter(opp => oppIds.has(opp.id) && opp.author !== userFullName);
   }, [applications, userFullName]);
@@ -129,7 +142,7 @@ export function MyTeamsManager({ userFullName }: { userFullName: string }) {
         const isOpen = openAccordionId === opp.id;
 
         return (
-          <div key={opp.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-[var(--surface)] shadow-sm dark:border-white/10">
+          <div key={opp.id} id={`team-accordion-${opp.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-[var(--surface)] shadow-sm dark:border-white/10">
             {/* Accordion Header */}
             <div 
               className="flex cursor-pointer items-center justify-between p-4 sm:p-5"

@@ -1,3 +1,16 @@
+export type Team = {
+  id?: string;
+  name: string;
+  full: boolean;
+  description?: string;
+  membersMax?: number;
+  membersCurrent?: number;
+  rolesNeeded?: string[];
+  technologies?: string[];
+  level?: "Başlangıç" | "Orta" | "İleri";
+  communication?: "Discord" | "WhatsApp" | "Telegram";
+};
+
 export type Opportunity = {
   id: string;
   title: string;
@@ -9,7 +22,8 @@ export type Opportunity = {
   membersCurrent: number;
   membersMax: number;
   description: string;
-  teams: { name: string; full: boolean }[];
+  teams: Team[];
+  type?: "hackathon" | "yarisma" | "bitirme-projesi" | string;
 };
 
 /** MVP ilan listesi — services/api/server.js ile aynı veri; Next /api ve harici API ile paylaşılır. */
@@ -27,8 +41,30 @@ export const OPPORTUNITIES: Opportunity[] = [
     description:
       "Tarım verilerini yapay zeka ile analiz eden, çiftçilere erken uyarı ve verim önerileri sunan platform. Ekip, sensör entegrasyonu ve web arayüzü üzerinde çalışacak.",
     teams: [
-      { name: "Sadi", full: false },
-      { name: "Sani", full: true },
+      { 
+        id: "t1",
+        name: "Yapay Zeka ve Veri", 
+        full: false,
+        description: "IoT sensör verilerini analiz edip anomali tespiti yapacak modelin geliştirilmesi.",
+        membersMax: 3,
+        membersCurrent: 1,
+        rolesNeeded: ["Veri Bilimi", "Backend Developer"],
+        technologies: ["Python", "TensorFlow", "PostgreSQL"],
+        level: "Orta",
+        communication: "Discord"
+      },
+      { 
+        id: "t2",
+        name: "Sensör Ekibi", 
+        full: true,
+        description: "Donanım entegrasyonu tamamlandı.",
+        membersMax: 2,
+        membersCurrent: 2,
+        rolesNeeded: [],
+        technologies: ["C++", "Arduino"],
+        level: "İleri",
+        communication: "WhatsApp"
+      },
     ],
   },
   {
@@ -73,8 +109,19 @@ export const OPPORTUNITIES: Opportunity[] = [
     membersMax: 3,
     description: "Repoyu tarayıp dokümantasyon önerileri ve PR açıklamaları üreten CLI ve web arayüzü.",
     teams: [
-      { name: "Docs", full: false },
-      { name: "ML", full: false },
+      { 
+        id: "t3",
+        name: "Web Arayüzü", 
+        full: false,
+        description: "CLI aracının ürettiği veriyi görselleştirecek bir dashboard.",
+        membersMax: 2,
+        membersCurrent: 0,
+        rolesNeeded: ["Frontend Developer", "UI/UX Designer"],
+        technologies: ["React", "TailwindCSS"],
+        level: "Başlangıç",
+        communication: "Telegram"
+      },
+      { name: "ML Modeli", full: false },
     ],
   },
   {
@@ -198,13 +245,25 @@ export type OpportunitiesPage = {
 };
 
 export function getOpportunitiesPage(limit: number, cursor: string | null | undefined): OpportunitiesPage {
+  let customList: Opportunity[] = [];
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("teamflow_custom_opportunities");
+      if (stored) customList = JSON.parse(stored) as Opportunity[];
+    } catch (e) {
+      console.error("Failed to parse custom opportunities", e);
+    }
+  }
+
+  const allOpportunities = [...customList, ...OPPORTUNITIES];
+
   let start = 0;
   if (cursor != null && String(cursor).trim() !== "") {
     const parsed = parseInt(String(cursor), 10);
     if (!Number.isNaN(parsed) && parsed >= 0) start = parsed;
   }
-  const items = OPPORTUNITIES.slice(start, start + limit);
+  const items = allOpportunities.slice(start, start + limit);
   const nextOffset = start + items.length;
-  const nextCursor = nextOffset < OPPORTUNITIES.length ? String(nextOffset) : null;
+  const nextCursor = nextOffset < allOpportunities.length ? String(nextOffset) : null;
   return { items, nextCursor };
 }

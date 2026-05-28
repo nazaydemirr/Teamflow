@@ -5,7 +5,7 @@ import { apiGet } from "@/lib/api";
 import { env } from "@/lib/env";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-export type { Opportunity, OpportunitiesPage } from "@/lib/opportunities-data";
+export type { Opportunity, OpportunitiesPage, Team } from "@/lib/opportunities-data";
 
 const DEFAULT_LIMIT = 12;
 const LOAD_MORE_THRESHOLD = 0.8;
@@ -28,7 +28,14 @@ async function fetchOpportunitiesPage(cursor: string | null, limit = DEFAULT_LIM
 
 export function useOpportunitiesFeed() {
   const [items, setItems] = useState<Opportunity[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursorState] = useState<string | null>(null);
+  const nextCursorRef = useRef<string | null>(null);
+
+  const setNextCursor = useCallback((cursor: string | null) => {
+    nextCursorRef.current = cursor;
+    setNextCursorState(cursor);
+  }, []);
+
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,18 +76,23 @@ export function useOpportunitiesFeed() {
     void initial();
     return () => {
       cancelled = true;
+      fetchLockedRef.current = false;
     };
   }, []);
 
   const loadMore = useCallback(async () => {
-    if (fetchLockedRef.current || !hasMoreRef.current || nextCursor === null) return;
+    const currentCursor = nextCursorRef.current;
+    if (fetchLockedRef.current || !hasMoreRef.current || currentCursor === null) return;
 
     fetchLockedRef.current = true;
     setLoadingMore(true);
     setLoadError(null);
     try {
-      const page = await fetchOpportunitiesPage(nextCursor);
-      setItems((prev) => [...prev, ...page.items]);
+      const page = await fetchOpportunitiesPage(currentCursor);
+      setItems((prev) => {
+        const newItems = page.items.filter((newItem) => !prev.some((p) => p.id === newItem.id));
+        return [...prev, ...newItems];
+      });
       setNextCursor(page.nextCursor);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Devam yükleme hatası");
@@ -88,7 +100,7 @@ export function useOpportunitiesFeed() {
       fetchLockedRef.current = false;
       setLoadingMore(false);
     }
-  }, [nextCursor]);
+  }, [setNextCursor]);
 
   useEffect(() => {
     function maybeLoadMore() {

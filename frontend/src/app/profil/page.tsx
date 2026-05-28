@@ -8,6 +8,8 @@ import { SkillTagPicker } from "@/components/SkillTagPicker";
 import { groupSkillsForDisplay } from "@/lib/skills-catalog";
 import { apiGet } from "@/lib/api";
 import { fetchUserSkills, updateUserSkills, hasMinimumSkills } from "@/lib/user-skills";
+import { fetchApplications } from "@/lib/applications";
+import { OPPORTUNITIES } from "@/lib/opportunities-data";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +17,8 @@ import { useEffect, useMemo, useState } from "react";
 type ApplicationStatus = "Onaylandi" | "Beklemede" | "Reddedildi";
 
 type Application = {
+  id?: string;
+  oppId?: string;
   title: string;
   leader: string;
   score: number;
@@ -81,6 +85,7 @@ export default function ProfilePage() {
   const [modalSkills, setModalSkills] = useState<string[]>([]);
   const [savingSkills, setSavingSkills] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [focusTeamId, setFocusTeamId] = useState<string | null>(null);
 
   const initials = useMemo(() => {
     const source = profile.fullName || user?.displayName || user?.email || "TF";
@@ -136,7 +141,27 @@ export default function ProfilePage() {
       if (isDemoSession) {
         try {
           const s = await fetchUserSkills();
-          setProfile((prev) => ({ ...prev, skillList: s }));
+          const apps = await fetchApplications();
+          
+          const formattedApps: Application[] = apps
+            .filter(a => a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici")
+            .map(a => {
+              const opp = OPPORTUNITIES.find(o => o.id === a.oppId);
+              return {
+                id: a.id,
+                oppId: a.oppId,
+                title: a.oppTitle,
+                leader: opp?.author || "-",
+                score: 85, // Fake score for demo
+                status: a.status as ApplicationStatus
+              };
+            });
+
+          setProfile((prev) => ({ 
+             ...prev, 
+             skillList: s, 
+             applications: formattedApps 
+          }));
         } catch (e) {
           // ignore
         } finally {
@@ -178,6 +203,8 @@ export default function ProfilePage() {
                 ? status
                 : "Beklemede";
             return {
+              id: candidate.id || "",
+              oppId: candidate.oppId || "",
               title: typeof candidate.title === "string" ? candidate.title : "Basvuru",
               leader: typeof candidate.leader === "string" ? candidate.leader : "-",
               score: typeof candidate.score === "number" ? candidate.score : 0,
@@ -439,10 +466,16 @@ export default function ProfilePage() {
                     >
                       {app.status}
                     </p>
-                    <button className="mt-3 h-9 w-full rounded-[var(--radius-md)] bg-emerald-600 px-3 text-sm font-medium text-white transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] active:scale-[0.97]">
-                      Ekiple Sohbet Et
-                    </button>
-                    <button className="mt-2 h-9 w-full rounded-[var(--radius-md)] border border-slate-300 px-3 text-sm font-medium text-[var(--text-navy)] dark:border-white/20">
+                    {app.status === "Onaylandi" && app.oppId && (
+                      <button 
+                        onClick={() => setFocusTeamId(app.oppId!)}
+                        className="mt-3 h-9 w-full rounded-[var(--radius-md)] bg-emerald-600 px-3 text-sm font-medium text-white transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] active:scale-[0.97]">
+                        Ekiple Sohbet Et
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => router.push("/feed")}
+                      className="mt-2 h-9 w-full rounded-[var(--radius-md)] border border-slate-300 px-3 text-sm font-medium text-[var(--text-navy)] dark:border-white/20">
                       Detaylar
                     </button>
                   </article>
@@ -451,7 +484,7 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          <MyTeamsManager userFullName={profile.fullName} />
+          <MyTeamsManager userFullName={profile.fullName} focusTeamId={focusTeamId} onFocusClear={() => setFocusTeamId(null)} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title="Son Aktivite Akisi">

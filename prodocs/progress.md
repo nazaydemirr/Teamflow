@@ -201,3 +201,32 @@ Bu dosya, chat içinde bugune kadar yapilan kod degisikliklerini ve teknik karar
   - Fırsat Akışı (`/feed`) sayfasına büyüteç ikonlu açılır kapanır bir arama çubuğu eklendi.
   - Aramalar eşzamanlı olarak Fırsat Başlığı, Şirket Adı ve Etiketlerde (Tags) filtreleme yapıyor.
   - Klasik `toLowerCase` yerine `toLocaleLowerCase('tr-TR')` kullanılarak büyük/küçük harf (case-insensitive) aramalarında yaşanan "I/ı", "İ/i" Türkçe karakter sorunları çözüldü. Boş şirket (`company: undefined`) alanlarında yaşanan çökme (crash) için güvenli (fallback) kontroller eklendi.
+
+### 13) Yeni Modallar, Takım Detayları ve Backend Düzenlemeleri
+
+- **Backend Dosya Yapısı:** `backend/api` altındaki dosyalar direkt olarak `backend/` ana dizinine taşınarak proje yapısı sadeleştirildi.
+- **Fırsat ve Takım Oluşturma Modalları:**
+  - Kullanıcıların yeni fırsat/ilan oluşturması için `CreateOpportunityModal` bileşeni eklendi.
+  - Takım oluşturmak için `CreateTeamModal` bileşeni eklendi.
+  - Yeni oluşturulan fırsatların `localStorage` (`teamflow_custom_opportunities`) kullanılarak tarayıcıda saklanması ve mevcut statik fırsatlarla (`OPPORTUNITIES`) dinamik olarak birleştirilmesi sağlandı.
+- **Profil Önizleme (Lider Paneli):**
+  - Liderlerin başvuranları daha hızlı değerlendirebilmesi için `ProfilePreviewModal` eklendi.
+  - `/lider/basvurular` sayfasındaki tabloya tıklayarak başvuranın yeteneklerinin ve isminin hızlıca incelenebilmesi sağlandı.
+- **Veri Modeli ve Demo Akışı İyileştirmeleri:**
+  - `opportunities-data.ts` içindeki `Team` tipi detaylandırıldı (`description`, `membersMax`, `rolesNeeded`, `technologies`, `level`, `communication` gibi özellikler eklendi).
+  - Profil sayfasında gösterilen başvuru demo verileri (örn: mock `score: 85`) zenginleştirilerek daha gerçekçi bir görünüm sunuldu. "Demo kullanici" etkileşimleri iyileştirildi.
+
+### 14) PostgreSQL Veritabanı Geçişi ve SOA (Service-Oriented Architecture) Refaktörü
+
+- **PostgreSQL Geçişi:**
+  - Proje, Firestore (`firebase-admin`) altyapısından yerel PostgreSQL veritabanı altyapısına (`teamflow_db`) taşındı.
+  - Bağımlılıklar güncellenerek `pg` ve `dotenv` modülleri projeye eklendi; `db.js` bağlantı modülü oluşturuldu.
+  - Veritabanı tablolarını (Kullanıcılar, Fırsatlar, Takımlar, Başvurular, Mesajlar, Bildirimler vb.) `UUID` tipleriyle sıfırdan oluşturan `init-db.js` scripti yazılıp çalıştırıldı.
+- **Backend Servis Odaklı Mimari (SOA) Refaktörü:**
+  - Yaklaşık 1200 satırlık hantal `server.js` dosyası temizlenerek kod yönetilebilir ve ölçeklenebilir parçalara ayrıldı.
+  - Yeni bir klasör mimarisi oluşturuldu: API uç noktaları için `routes/`, veritabanı ile konuşan iş mantıkları (business logic) için `services/`, JWT kontrolü için `middlewares/` ve yardımcı fonksiyonlar için `utils/`.
+  - Tüm özellikler (Auth, Profile, Opportunity, Team, Application, Chat, Notification) kendi bağımsız `router` ve `service` dosyalarına başarıyla taşındı. Eski `server.js` yalnızca bu modülleri ayağa kaldıran 60 satırlık basit bir yönlendiriciye (entry point) dönüştürüldü.
+- **YENİ: Takım İlerleme (Progress & Milestone) Takibi Sistemi:**
+  - SOA geçişine ek olarak, takımların proje gelişimlerini takip edebilecekleri yeni bir özellik eklendi.
+  - `init-db.js` güncellenerek `team_milestones` (Aşamalar) ve `team_tasks` (Görevler) adında 2 yeni SQL tablosu oluşturuldu.
+  - `progress_service.js` ve `progress_routes.js` oluşturularak; aşama ekleme, görev ekleme ve bu görevlerin tamamlanma durumlarına göre takımın % kaç ilerlediğini dinamik hesaplayan bir backend modülü sisteme eklendi.

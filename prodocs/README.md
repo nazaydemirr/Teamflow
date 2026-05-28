@@ -1,97 +1,30 @@
-🚀 Teamflow (proje özeti)
+# TEAMFLOW API (MVP bootstrap)
 
-Bu proje, mühendislik öğrencilerinin kariyer ve teknik fırsatları keşfetmesini ve bu fırsatlara katılmak için ekip oluşturmasını sağlayan tek sayfalı, 
-etkileşim odaklı bir web platformudur.
+Bu dizin, `plan.md` içindeki **A.3 Backend kurulumu (ilk adım)** için oluşturulmuş minimum backend iskeletidir.
 
-🧠 TEMEL PROBLEM
+Backend, iOS + web için ortak tüketilecek şekilde **HTTP API** olarak tasarlanır.
 
-Öğrenciler:
+## Çalıştırma
 
-Staj, eğitim ve bootcamp fırsatlarını farklı yerlerden takip eder
-Hackathon ve yarışmalara katılmak ister ama ekip bulamaz
-Fırsatlara ulaşma ve ekip kurma süreci dağınıktır
-💡 ÇÖZÜM
+PowerShell:
 
-Tüm içerikler tek bir akış sayfasında toplanır.
+```bash
+cd "C:\Users\Nazlıcan\Desktop\flowup 1. hafta\services\api"
+$env:Path = "C:\Program Files\nodejs;" + $env:Path
+npm install
+node server.js
+```
 
-Bu sayfa hem:
+## Endpointler
 
-fırsatları gösterir
-hem de katılım ve ekip kurmayı yönetir
-📢 TEK SAYFA (FEED MANTIĞI)
+- `GET /health`
+  - 200: `{ "ok": true }`
+- `GET /me`
+  - 401: token yok/yanlış
+  - 200: `{ "uid": "...", "skills": [] }` (şimdilik stub response; US.01’de Firestore’dan dönecek)
 
-Uygulamada sadece bir ana akış sayfası vardır.
+## Env
 
-Bu sayfada tüm gönderiler paylaşılır.
+- `PORT` (opsiyonel, default `8080`)
+- `GOOGLE_APPLICATION_CREDENTIALS` (opsiyonel, dev ortamında Firebase Admin için)
 
-📌 1. Gönderi Türü: Fırsat Paylaşımları
-
-Kullanıcı “fırsat” seçerse:
-
-🎓 eğitimler
-💼 staj ilanları
-📚 bootcamp’ler
-
-paylaşılır.
-
-İçerik yapısı:
-Başlık
-Açıklama
-Dış link (başvuru / kayıt sayfası)
-Davranış:
-
-Sadece bilgi içerir, kullanıcı linke yönlendirilir.
-
-🏆 2. Gönderi Türü: Hackathon / Yarışma / Proje
-
-Kullanıcı bu kategoriyi seçerse:
-
-🏆 hackathon
-🎯 yarışma
-🧩 proje tabanlı etkinlik
-
-paylaşılır.
-
-📌 İçerik yapısı:
-Etkinlik adı
-Açıklama
-Takım kişi sayısı
-Gerekli yetenekler
-⚙️ EKSTRA ÖZELLİK:
-
-Bu tür gönderilerin altında otomatik olarak:
-
-👉 “Katıl” butonu çıkar
-🤝 KATIL SİSTEMİ (EN KRİTİK NOKTA)
-📌 Katıl butonuna basıldığında:
-
-Kullanıcı direkt ekibe alınmaz.
-
-Süreç:
-Kullanıcı “Katılmak istiyorum” der
-Sistem kullanıcıyı ekip oluşturma / ekip listesi sayfasına yönlendirir
-Kullanıcı mevcut ekipleri görür veya yeni ekip oluşturur
-Ekip lideri başvuruları değerlendirir
-Uygun kişiler ekibe kabul edilir
-🎯 Amaç:
-
-Doğrudan katılım yerine kontrollü ekip oluşturma ve doğru eşleşme sağlamak
-
-🔄 TEK SAYFA AKIŞ MANTIĞI
-Tüm içerikler tek feed’de görünür
-Gönderi tipi seçimine göre davranış değişir
-Fırsatlar → linke yönlendirir
-Hackathon → “katıl” aksiyonu açar
-Katıl → ekip sayfasına yönlendirir
-💡 PROJENİN TEMEL DEĞERİ
-
-“Platform, mühendislik öğrencilerinin hem fırsatları tek yerden görmesini hem de bu fırsatlara katılmak için gerekli ekipleri aynı ekosistem içinde oluşturmasını sağlar.”
-
-🚀 SONUÇ
-
-Bu sistem:
-
-tek sayfa deneyimi sunar
-içerik türüne göre dinamik davranır
-kullanıcıyı pasif izleyiciden aktif katılımcıya dönüştürür
-ekip kurma sürecini merkezi hale getirir

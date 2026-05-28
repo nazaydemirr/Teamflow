@@ -2,8 +2,10 @@
 
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CreateOpportunityModal } from "@/components/CreateOpportunityModal";
+import { CreateTeamModal } from "@/components/CreateTeamModal";
 
-import type { Opportunity } from "@/hooks/useOpportunitiesFeed";
+import type { Opportunity, Team } from "@/hooks/useOpportunitiesFeed";
 import { useOpportunitiesFeed } from "@/hooks/useOpportunitiesFeed";
 import { useApplications } from "@/hooks/useApplications";
 import { useUserSkills } from "@/hooks/useUserSkills";
@@ -249,18 +251,33 @@ function OpportunitySidePanelBody({
   joinedTeams: Set<string>;
   onJoinTeam: (teamName: string) => void;
 }) {
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [localTeams, setLocalTeams] = useState(opp.teams);
+
+  useEffect(() => {
+    setLocalTeams(opp.teams);
+  }, [opp.teams]);
+
+  const handleCreateTeamSuccess = (newTeam: Team) => {
+    if (localTeams.some(t => t.name.toLowerCase() === newTeam.name.toLowerCase())) {
+      alert("Bu isimde bir takım zaten var.");
+      return;
+    }
+    setLocalTeams([...localTeams, newTeam]);
+    setIsTeamModalOpen(false);
+  };
+
   const kontenjanKalan = Math.max(0, opp.membersMax - opp.membersCurrent);
+  const effectiveType = opp.type || inferCategory(opp.title, opp.tags);
+  const isBitirme = effectiveType === "bitirme-projesi";
 
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-          Side-Panel — PRD G.07–G.09
+          Detay Paneli
         </h2>
         <div className="flex items-center gap-2">
-          <span className="rounded border border-slate-200 dark:border-slate-700/50 bg-slate-100 dark:bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-400">
-            Ad-02
-          </span>
           <button
             type="button"
             onClick={onClose}
@@ -278,81 +295,122 @@ function OpportunitySidePanelBody({
       <p className="mb-4 text-[13px] text-slate-600 dark:text-slate-400">
         Lider: <span className="text-[var(--text-slate)] dark:text-slate-300">{opp.author}</span> · Kontenjan:{" "}
         <span className="text-[var(--text-slate)] dark:text-slate-300">
-          {opp.membersCurrent}/{opp.membersMax} uyelik · Yaklasik {kontenjanKalan} bos rozet
+          {opp.membersCurrent}/{opp.membersMax}
         </span>
       </p>
       <p className="mb-6 text-[15px] leading-relaxed text-[var(--text-slate)] dark:text-slate-300">{opp.description}</p>
 
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">Ekipler</p>
-      <ul className="mb-6 space-y-3">
-        {opp.teams.map((team) => {
-          const joined = joinedTeams.has(team.name);
-          const blockedByCap = atApplicationCap && !joined;
-          const disabled = team.full || joined || blockedByCap;
-          let title: string | undefined;
-          if (team.full) title = "Bu birim dolu";
-          else if (joined) title = "Bu takima zaten basvurdunuz";
-          else if (blockedByCap) title = "Limit Dolu";
+      {!isBitirme && (
+        <div className="mb-6 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-white dark:from-white/[0.03] dark:to-white/[0.01] shadow-sm relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 size-24 bg-[var(--flow-blue)]/10 rounded-full blur-2xl pointer-events-none" />
+          <h4 className="text-[15px] font-bold text-[var(--text-navy)] dark:text-slate-100 mb-1">Kendi Takımını Kur</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 pr-8">Hedeflerine ulaşmak için yetkinliklerini birleştirecek harika bir takım oluştur.</p>
+          <button 
+            onClick={() => setIsTeamModalOpen(true)} 
+            className="w-full sm:w-auto bg-[var(--flow-blue)] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2"
+          >
+            <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+            Takım Oluştur
+          </button>
+        </div>
+      )}
 
-          return (
-            <li key={team.name} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-100">{team.name}</span>
-              <div className="flex flex-col items-start gap-1">
-                {team.full ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled
-                      title="Limit Dolu"
-                      className="cursor-not-allowed rounded-[var(--radius-md)] bg-slate-700 px-4 py-2 text-xs font-semibold text-slate-500"
-                    >
-                      Katıl
-                    </button>
-                    <span className="text-[11px] font-medium text-[#ef4444]">Birim Limit Dolu</span>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      title={title}
-                      onClick={() => onJoinTeam(team.name)}
-                      className="rounded-[var(--radius-md)] bg-[var(--flow-blue)] px-4 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/20 transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] enabled:active:scale-[0.97] enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500"
-                    >
-                      Katıl
-                    </button>
-                    {joined ? (
-                      <span className="text-[11px] font-medium text-emerald-400">Basvuru kayitli</span>
-                    ) : null}
-                    {blockedByCap ? (
-                      <span className="text-[11px] font-medium text-[#ef4444]">
-                        Aktif basvuru limiti (PRD AC.03)
+      <p className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{isBitirme ? "Proje Ekibi" : "Mevcut Takımlar"}</p>
+      
+      {localTeams.length === 0 ? (
+        <p className="text-sm text-slate-500 mb-6 italic">Henüz bir takım kurulmamış. İlk kuran sen ol!</p>
+      ) : (
+        <ul className="mb-6 space-y-4">
+          {localTeams.map((team) => {
+            const joined = joinedTeams.has(team.name);
+            const blockedByCap = atApplicationCap && !joined;
+            const missingSlots = team.membersMax && team.membersCurrent ? team.membersMax - team.membersCurrent : null;
+            const disabled = team.full || missingSlots === 0 || joined || blockedByCap;
+
+            return (
+              <li key={team.name} className="flex flex-col p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#0c1118] shadow-sm hover:border-[var(--flow-blue)]/50 transition-colors">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-bold text-[var(--text-navy)] dark:text-slate-100">{team.name}</span>
+                      {team.level && (
+                        <span className="text-[10px] font-semibold bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">
+                          {team.level}
+                        </span>
+                      )}
+                    </div>
+                    {team.description && <p className="text-[12px] text-slate-500 mt-1.5 leading-relaxed">{team.description}</p>}
+                  </div>
+                  
+                  {team.full || missingSlots === 0 ? (
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-md border border-red-200 dark:border-red-500/20">
+                      Takım Dolu
+                    </span>
+                  ) : missingSlots ? (
+                    <span className="shrink-0 text-[11px] font-semibold text-[var(--flow-blue)] bg-blue-50 dark:bg-blue-500/10 px-2.5 py-1 rounded-md">
+                      {missingSlots} Kişi Eksik
+                    </span>
+                  ) : null}
+                </div>
+
+                {((team.rolesNeeded && team.rolesNeeded.length > 0) || (team.technologies && team.technologies.length > 0)) && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {team.rolesNeeded?.map(role => (
+                      <span key={role} className="text-[10px] font-medium text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/20">
+                        {role}
                       </span>
-                    ) : null}
-                  </>
+                    ))}
+                    {team.technologies?.map(tech => (
+                      <span key={tech} className="text-[10px] font-medium text-indigo-700 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/20">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
                 )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+
+                <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
+                    {team.communication === "Discord" && <span className="text-indigo-500">Discord</span>}
+                    {team.communication === "WhatsApp" && <span className="text-emerald-500">WhatsApp</span>}
+                    {team.communication === "Telegram" && <span className="text-sky-500">Telegram</span>}
+                  </div>
+                  
+                  <button
+                    onClick={() => !disabled && onJoinTeam(team.name)}
+                    disabled={disabled}
+                    className={`shrink-0 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition-all ${
+                      joined
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                        : team.full || missingSlots === 0
+                        ? "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 cursor-not-allowed"
+                        : "bg-[var(--flow-blue)] text-white hover:brightness-110 active:scale-95"
+                    }`}
+                  >
+                    {joined ? "Başvuruldu" : team.full || missingSlots === 0 ? "Dolu" : "Katıl"}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">Üyeler</p>
       <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/50 p-3 shadow-inner shadow-black/20">
         <span className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-slate-600 to-slate-700 text-sm font-semibold text-white ring-1 ring-white/10">
-          MT
+          {opp.authorInitials}
         </span>
         <div>
-          <p className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-100">Mohenet T</p>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400">decomatarayer</p>
+          <p className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-100">{opp.author}</p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">Takım Lideri</p>
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end text-slate-600 dark:text-slate-400" aria-hidden>
-        <svg className="size-6" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l2.4 7.2h7.6l-6 4.6 2.3 7.2L12 16.4l-6.3 4.6 2.3-7.2-6-4.6h7.6L12 2z" />
-        </svg>
-      </div>
+      <CreateTeamModal 
+        isOpen={isTeamModalOpen} 
+        onClose={() => setIsTeamModalOpen(false)}
+        onSuccess={handleCreateTeamSuccess}
+      />
     </>
   );
 }
@@ -380,6 +438,7 @@ function FeedPageInner() {
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const activeCategories = useMemo(
     () =>
@@ -512,7 +571,7 @@ function FeedPageInner() {
         teamName,
         applicantLabel:
           typeof localStorage !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true"
-            ? "Demo kullanici"
+            ? "Teamflow Kullanici"
             : "Oturum kullanicisi",
         applicantSkills: skills,
       });
@@ -738,60 +797,115 @@ function FeedPageInner() {
                 ))
               : displayOpportunities.map((opp) => {
                   const isSelected = opp.id === selectedOppId;
+                  const effectiveType = opp.type || inferCategory(opp.title, opp.tags);
+                  const isBitirme = effectiveType === "bitirme-projesi";
+                  const kontenjanKalan = Math.max(0, opp.membersMax - opp.membersCurrent);
+
                   return (
-                    <button
+                    <div
                       key={opp.id}
-                      type="button"
-                      onClick={() => selectOpportunityCard(opp.id)}
-                      className={`tf-feed-card w-full p-4 text-left transition-all duration-[var(--duration)] [transition-timing-function:var(--ease)] hover:-translate-y-0.5 hover:shadow-xl ${
+                      className={`tf-feed-card w-full flex flex-col transition-all duration-[var(--duration)] [transition-timing-function:var(--ease)] hover:-translate-y-0.5 hover:shadow-xl ${
                         isSelected ? "tf-feed-card-selected" : ""
                       }`}
                     >
-                      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-                        <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-navy)] dark:text-slate-100">{opp.title}</h3>
-                        <MatchBadge percent={opp.matchPercent} />
-                      </div>
-                      <div className="mb-3 flex items-center gap-2">
-                        <span className="grid size-8 place-items-center rounded-full bg-slate-600 text-[11px] font-semibold text-white">
-                          {opp.authorInitials}
-                        </span>
-                        <span className="text-[13px] text-[var(--text-slate)] dark:text-slate-300">{opp.author}</span>
-                      </div>
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {opp.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-slate-100 dark:bg-white/[0.06] px-2.5 py-0.5 text-[11px] text-[var(--text-slate)] dark:text-slate-300 ring-1 ring-slate-200 dark:ring-white/10"
-                          >
-                            {tag}
+                      <button
+                        type="button"
+                        onClick={() => selectOpportunityCard(opp.id)}
+                        className="text-left flex-1 p-4 pb-2"
+                      >
+                        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--flow-blue)] bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded w-fit">
+                              {effectiveType === "hackathon" ? "Hackathon" : effectiveType === "yarisma" ? "Yarışma" : "Bitirme Projesi"}
+                            </span>
+                            <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-navy)] dark:text-slate-100">{opp.title}</h3>
+                          </div>
+                          <MatchBadge percent={opp.matchPercent} />
+                        </div>
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="grid size-8 place-items-center rounded-full bg-slate-600 text-[11px] font-semibold text-white">
+                            {opp.authorInitials}
                           </span>
-                        ))}
+                          <span className="text-[13px] text-[var(--text-slate)] dark:text-slate-300">{opp.author}</span>
+                        </div>
+                        {opp.description && (
+                          <p className="mb-3 text-[13px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            {opp.description}
+                          </p>
+                        )}
+                        <div className="mb-4 flex flex-wrap gap-2">
+                          {opp.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-slate-100 dark:bg-white/[0.06] px-2.5 py-0.5 text-[11px] text-[var(--text-slate)] dark:text-slate-300 ring-1 ring-slate-200 dark:ring-white/10"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        {opp.teams && opp.teams.length > 0 && !isBitirme && (
+                          <div className="mb-4 p-3 rounded-lg bg-slate-50 dark:bg-[#0c1118]/50 border border-slate-100 dark:border-slate-800">
+                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                              {opp.teams.length} Aktif Takım
+                            </p>
+                            <div className="flex flex-col gap-1.5">
+                              {opp.teams.slice(0, 2).map((t) => (
+                                <div key={t.name} className="flex items-center gap-2">
+                                  <div className={`size-1.5 rounded-full ${t.full ? "bg-red-400" : "bg-emerald-400"}`} />
+                                  <span className="text-[12px] font-medium text-slate-700 dark:text-slate-300 truncate">
+                                    {t.name}
+                                  </span>
+                                  {t.rolesNeeded && t.rolesNeeded.length > 0 && (
+                                    <span className="text-[10px] text-slate-400 truncate">
+                                      — {t.rolesNeeded[0]} aranıyor
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                              {opp.teams.length > 2 && (
+                                <p className="text-[10px] text-[var(--flow-blue)] font-medium mt-0.5 ml-3.5">
+                                  +{opp.teams.length - 2} takım daha
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </button>
+
+                      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700/50 p-4 pt-3 bg-slate-50/50 dark:bg-white/[0.01]">
+                        <div className="flex flex-wrap gap-4 text-[12px] text-slate-600 dark:text-slate-400">
+                          <span className="flex items-center gap-1.5">
+                            <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {opp.deadline}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            {kontenjanKalan} Açık Pozisyon
+                          </span>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          {isBitirme ? (
+                            <button onClick={() => selectOpportunityCard(opp.id)} className="bg-[var(--flow-blue)] text-white text-xs font-semibold px-4 py-1.5 rounded-lg shadow-md hover:brightness-110 transition-all active:scale-95">
+                              Takıma Katıl
+                            </button>
+                          ) : (
+                            <>
+                              <button onClick={() => selectOpportunityCard(opp.id)} className="bg-white dark:bg-[#0c1118] text-[var(--flow-blue)] border border-[var(--flow-blue)] text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all active:scale-95">
+                                Takımları Gör
+                              </button>
+                              <button onClick={() => selectOpportunityCard(opp.id)} className="bg-[var(--flow-blue)] text-white text-xs font-semibold px-4 py-1.5 rounded-lg shadow-md hover:brightness-110 transition-all active:scale-95">
+                                Takım Oluştur
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-4 border-t border-slate-200 dark:border-slate-700/50 pt-3 text-[12px] text-slate-600 dark:text-slate-400">
-                        <span className="flex items-center gap-1.5">
-                          <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                          Deadline {opp.deadline}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                          </svg>
-                          {opp.membersCurrent}/{opp.membersMax} Üye
-                        </span>
-                      </div>
-                    </button>
+                    </div>
                   );
                 })}
             {loadingMore && opportunities.length > 0
@@ -871,11 +985,11 @@ function FeedPageInner() {
               type="button"
               aria-label="Detay panelini kapat"
               onClick={closeDetailPanel}
-              className="fixed inset-0 z-[44] bg-black/55 backdrop-blur-[2px]"
+              className="fixed inset-0 z-[55] bg-black/55 backdrop-blur-[2px]"
             />
             {/* >=768px: sağdan kayan panel */}
             <aside
-              className={`fixed right-0 top-16 z-[45] hidden h-[calc(100vh-4rem)] w-full max-w-[380px] flex-col border-l border-slate-300 dark:border-slate-600 bg-[var(--surface)] dark:bg-[#0c1118] shadow-2xl shadow-black/40 md:flex ${
+              className={`fixed right-0 top-16 z-[60] hidden h-[calc(100vh-4rem)] w-full max-w-[480px] flex-col border-l border-slate-300 dark:border-slate-600 bg-[var(--surface)] dark:bg-[#0c1118] shadow-2xl shadow-black/40 md:flex ${
                 detailPanelEntered ? "translate-x-0" : "translate-x-full"
               } transition-transform duration-300 ease-out`}
               role="complementary"
@@ -896,7 +1010,7 @@ function FeedPageInner() {
             </aside>
             {/* <768px: bottom-sheet */}
             <div
-              className="fixed inset-0 z-[45] flex items-end bg-black/55 backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-[60] flex items-end bg-black/55 backdrop-blur-[2px] md:hidden"
               onClick={closeDetailPanel}
               role="presentation"
             >
@@ -926,6 +1040,28 @@ function FeedPageInner() {
             </div>
           </>
         ) : null}
+
+        {/* Floating Action Button for Create Opportunity */}
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="fixed bottom-8 right-8 z-50 flex items-center gap-2 bg-[var(--flow-blue)] text-white px-5 py-4 rounded-xl shadow-[0_8px_30px_rgb(37,99,235,0.4)] hover:shadow-[0_8px_40px_rgb(37,99,235,0.6)] hover:-translate-y-1 transition-all duration-300 group"
+        >
+          <div className="bg-white/20 rounded-lg p-1 group-hover:rotate-90 transition-transform duration-300">
+            <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span className="font-semibold tracking-wide">Fırsat Oluştur</span>
+        </button>
+
+        <CreateOpportunityModal 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)} 
+          onSuccess={() => {
+            setIsCreateModalOpen(false);
+            void retry();
+          }} 
+        />
       </div>
     </div>
   );

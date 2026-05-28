@@ -6,15 +6,18 @@ import { addNotification } from "@/lib/notifications";
 import Link from "next/link";
 import { useState, useRef } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ProfilePreviewModal } from "@/components/ProfilePreviewModal";
 
 function SwipeableApplicationRow({
   a,
   act,
   onDelete,
+  onOpenProfile,
 }: {
   a: StoredApplication;
   act: (row: StoredApplication, next: StoredApplication["status"]) => Promise<void>;
   onDelete: (id: string) => void;
+  onOpenProfile: (name: string, skills: string[]) => void;
 }) {
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -63,7 +66,14 @@ function SwipeableApplicationRow({
     >
       <td className="px-4 py-3 font-medium text-[var(--text-navy)] dark:text-slate-100">{a.oppTitle}</td>
       <td className="px-4 py-3 text-[var(--text-slate)]">{a.teamName}</td>
-      <td className="px-4 py-3 text-[var(--text-slate)]">{a.applicantLabel}</td>
+      <td className="px-4 py-3 text-[var(--text-slate)]">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onOpenProfile(a.applicantLabel, a.applicantSkills); }}
+          className="text-[var(--flow-blue)] hover:underline font-semibold transition-colors"
+        >
+          {a.applicantLabel}
+        </button>
+      </td>
       <td className="max-w-[200px] px-4 py-3 text-[var(--text-slate)]">
         <span className="line-clamp-2">{a.applicantSkills.join(", ") || "—"}</span>
       </td>
@@ -136,6 +146,7 @@ function SwipeableApplicationRow({
 export default function LeaderApplicationsPage() {
   const { applications, refresh } = useApplications();
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<{name: string, skills: string[]} | null>(null);
 
   async function act(row: StoredApplication, next: StoredApplication["status"]) {
     try {
@@ -225,12 +236,25 @@ export default function LeaderApplicationsPage() {
               </tr>
             ) : (
               applications.map((a) => (
-                <SwipeableApplicationRow key={a.id} a={a} act={act} onDelete={handleDelete} />
+                <SwipeableApplicationRow 
+                  key={a.id} 
+                  a={a} 
+                  act={act} 
+                  onDelete={handleDelete} 
+                  onOpenProfile={(name, skills) => setSelectedProfile({ name, skills })}
+                />
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      <ProfilePreviewModal 
+        isOpen={selectedProfile !== null} 
+        onClose={() => setSelectedProfile(null)} 
+        applicantName={selectedProfile?.name || ""}
+        applicantSkills={selectedProfile?.skills || []}
+      />
     </main>
   );
 }
