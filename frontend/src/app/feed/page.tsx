@@ -20,10 +20,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 const filterCategories = [
-  { id: "teknofest", label: "TEKNOFEST" },
-  { id: "hackathon", label: "Hackathon" },
   { id: "bitirme-projesi", label: "Bitirme Projesi" },
-  { id: "staj", label: "Staj" },
+  { id: "hackathon", label: "Hackathon" },
+  { id: "yarisma", label: "Yarışma" },
 ];
 
 const filterTech = [
@@ -49,10 +48,9 @@ function normalizeText(value: string) {
 
 function inferCategory(opportunityTitle: string, opportunityTags: string[]) {
   const haystack = `${opportunityTitle} ${opportunityTags.join(" ")}`.toLocaleLowerCase("tr-TR");
-  if (haystack.includes("teknofest")) return "teknofest";
   if (haystack.includes("hackathon")) return "hackathon";
-  if (haystack.includes("staj") || haystack.includes("intern")) return "staj";
-  if (haystack.includes("proje") || haystack.includes("mvp")) return "bitirme-projesi";
+  if (haystack.includes("yarisma") || haystack.includes("yarışma")) return "yarisma";
+  if (haystack.includes("proje") || haystack.includes("mvp") || haystack.includes("bitirme")) return "bitirme-projesi";
   return "hackathon";
 }
 
@@ -325,7 +323,7 @@ function OpportunitySidePanelBody({
             const joined = joinedTeams.has(team.name);
             const blockedByCap = atApplicationCap && !joined;
             const missingSlots = team.membersMax && team.membersCurrent ? team.membersMax - team.membersCurrent : null;
-            const disabled = team.full || missingSlots === 0 || joined || blockedByCap;
+            const disabled = team.full || missingSlots === 0 || joined || blockedByCap || team.isOwner;
 
             return (
               <li key={team.name} className="flex flex-col p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#0c1118] shadow-sm hover:border-[var(--flow-blue)]/50 transition-colors">
@@ -379,14 +377,16 @@ function OpportunitySidePanelBody({
                     onClick={() => !disabled && onJoinTeam(team.name)}
                     disabled={disabled}
                     className={`shrink-0 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition-all ${
-                      joined
+                      team.isOwner
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 cursor-not-allowed"
+                        : joined
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
                         : team.full || missingSlots === 0
                         ? "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 cursor-not-allowed"
                         : "bg-[var(--flow-blue)] text-white hover:brightness-110 active:scale-95"
                     }`}
                   >
-                    {joined ? "Başvuruldu" : team.full || missingSlots === 0 ? "Dolu" : "Katıl"}
+                    {team.isOwner ? "Kaptansın" : joined ? "Başvuruldu" : team.full || missingSlots === 0 ? "Dolu" : "Katıl"}
                   </button>
                 </div>
               </li>
@@ -439,6 +439,24 @@ function FeedPageInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  
+  const [currentUserFullName, setCurrentUserFullName] = useState("Oturum kullanicisi");
+
+  useEffect(() => {
+    const isDemo = typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true";
+    if (isDemo) {
+      const pType = localStorage.getItem("teamflow_demo_profile");
+      if (pType === "frontend") setCurrentUserFullName("Frontend Geliştirici (Demo)");
+      else if (pType === "backend") setCurrentUserFullName("Backend Geliştirici (Demo)");
+      else if (pType === "ai") setCurrentUserFullName("Yapay Zeka Uzmanı (Demo)");
+      else setCurrentUserFullName("Demo Kullanici");
+    } else if (typeof window !== "undefined") {
+      const savedName = localStorage.getItem("teamflow_display_name");
+      if (savedName) {
+        setCurrentUserFullName(savedName);
+      }
+    }
+  }, []);
 
   const activeCategories = useMemo(
     () =>
@@ -469,7 +487,7 @@ function FeedPageInner() {
     const now = new Date();
     return opportunities.filter((opportunity) => {
       if (activeCategories.length > 0) {
-        const inferredCategory = inferCategory(opportunity.title, opportunity.tags);
+        const inferredCategory = opportunity.type || inferCategory(opportunity.title, opportunity.tags);
         if (!activeCategories.includes(inferredCategory)) return false;
       }
 
@@ -569,10 +587,7 @@ function FeedPageInner() {
         oppId: selectedOpportunity.id,
         oppTitle: selectedOpportunity.title,
         teamName,
-        applicantLabel:
-          typeof localStorage !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true"
-            ? "Teamflow Kullanici"
-            : "Oturum kullanicisi",
+        applicantLabel: currentUserFullName,
         applicantSkills: skills,
       });
       if (!row) return;
@@ -706,10 +721,12 @@ function FeedPageInner() {
               href="/profil"
               className="flex items-center gap-2 rounded-[var(--radius-md)] border border-slate-200 dark:border-slate-700/50 px-2 py-1.5 pr-3 transition-colors hover:border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-white/[0.04]"
             >
-              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-slate-600 to-slate-700 text-xs font-semibold text-white ring-1 ring-white/10">
-                MT
+              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-slate-600 to-slate-700 text-xs font-semibold text-white ring-1 ring-white/10 uppercase">
+                {currentUserFullName.split(" ").map((n) => n[0]).join("").substring(0, 2)}
               </span>
-              <span className="hidden text-sm font-medium text-[var(--text-navy)] dark:text-slate-100 sm:inline">Mihneel T</span>
+              <span className="hidden text-sm font-medium text-[var(--text-navy)] dark:text-slate-100 sm:inline">
+                {currentUserFullName}
+              </span>
             </Link>
           </div>
         </div>
@@ -795,7 +812,7 @@ function FeedPageInner() {
               ? Array.from({ length: 4 }, (_, i) => (
                   <OpportunityCardSkeleton key={`sk-${i}`} viewMode={viewMode} />
                 ))
-              : displayOpportunities.map((opp) => {
+              : displayOpportunities.map((opp, i) => {
                   const isSelected = opp.id === selectedOppId;
                   const effectiveType = opp.type || inferCategory(opp.title, opp.tags);
                   const isBitirme = effectiveType === "bitirme-projesi";
@@ -803,7 +820,7 @@ function FeedPageInner() {
 
                   return (
                     <div
-                      key={opp.id}
+                      key={`${opp.id}-${i}`}
                       className={`tf-feed-card w-full flex flex-col transition-all duration-[var(--duration)] [transition-timing-function:var(--ease)] hover:-translate-y-0.5 hover:shadow-xl ${
                         isSelected ? "tf-feed-card-selected" : ""
                       }`}
@@ -834,9 +851,9 @@ function FeedPageInner() {
                           </p>
                         )}
                         <div className="mb-4 flex flex-wrap gap-2">
-                          {opp.tags.map((tag) => (
+                          {opp.tags.map((tag, tagIndex) => (
                             <span
-                              key={tag}
+                              key={`${tag}-${tagIndex}`}
                               className="rounded-full bg-slate-100 dark:bg-white/[0.06] px-2.5 py-0.5 text-[11px] text-[var(--text-slate)] dark:text-slate-300 ring-1 ring-slate-200 dark:ring-white/10"
                             >
                               {tag}
@@ -850,8 +867,8 @@ function FeedPageInner() {
                               {opp.teams.length} Aktif Takım
                             </p>
                             <div className="flex flex-col gap-1.5">
-                              {opp.teams.slice(0, 2).map((t) => (
-                                <div key={t.name} className="flex items-center gap-2">
+                              {opp.teams.slice(0, 2).map((t, tIndex) => (
+                                <div key={`${t.name}-${tIndex}`} className="flex items-center gap-2">
                                   <div className={`size-1.5 rounded-full ${t.full ? "bg-red-400" : "bg-emerald-400"}`} />
                                   <span className="text-[12px] font-medium text-slate-700 dark:text-slate-300 truncate">
                                     {t.name}
@@ -889,7 +906,11 @@ function FeedPageInner() {
                           </span>
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {isBitirme ? (
+                          {opp.author === currentUserFullName ? (
+                            <button onClick={() => router.push("/profil")} className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold px-4 py-1.5 rounded-lg shadow-sm hover:brightness-110 transition-all active:scale-95">
+                              Senin Takımın
+                            </button>
+                          ) : isBitirme ? (
                             <button onClick={() => selectOpportunityCard(opp.id)} className="bg-[var(--flow-blue)] text-white text-xs font-semibold px-4 py-1.5 rounded-lg shadow-md hover:brightness-110 transition-all active:scale-95">
                               Takıma Katıl
                             </button>

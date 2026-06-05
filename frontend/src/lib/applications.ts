@@ -18,21 +18,61 @@ export function broadcastApplicationsUpdated() {
   window.dispatchEvent(new Event("teamflow-applications"));
 }
 
-const STORAGE_KEY = "teamflow_applications_v1";
+function getStorageKey() {
+  if (typeof window === "undefined") return "teamflow_applications_v1";
+  const profile = localStorage.getItem("teamflow_demo_profile");
+  if (profile) return `teamflow_apps_${profile}`;
+  return "teamflow_applications_v1";
+}
+
+function getPrefilledApplications(profile: string): StoredApplication[] {
+  let applicantLabel = "Demo Kullanici";
+  let prefill: StoredApplication[] = [];
+  const baseApp = {
+    status: "Onaylandi" as ApplicationStatus,
+    appliedAt: new Date().toISOString()
+  };
+
+  if (profile === "frontend") {
+    applicantLabel = "Frontend Geliştirici (Demo)";
+    prefill = [
+      { ...baseApp, id: "app_f1", oppId: "3", oppTitle: "Eğitim Platformu MVP", teamName: "Core", applicantLabel, applicantSkills: ["React"] },
+      { ...baseApp, id: "app_f2", oppId: "9", oppTitle: "İç Dokümantasyon Portalı", teamName: "DX", applicantLabel, applicantSkills: ["Next.js"] }
+    ];
+  } else if (profile === "backend") {
+    applicantLabel = "Backend Geliştirici (Demo)";
+    prefill = [
+      { ...baseApp, id: "app_b1", oppId: "5", oppTitle: "Mobil Ödeme SDK Entegrasyonu", teamName: "Mobile", applicantLabel, applicantSkills: ["Node.js"] },
+      { ...baseApp, id: "app_b2", oppId: "11", oppTitle: "Tedarik Zinciri Takip MVP", teamName: "Ops", applicantLabel, applicantSkills: ["PostgreSQL"] }
+    ];
+  } else if (profile === "ai") {
+    applicantLabel = "Yapay Zeka Uzmanı (Demo)";
+    prefill = [
+      { ...baseApp, id: "app_a1", oppId: "4", oppTitle: "Açık Kaynak Dokümantasyon Asistanı", teamName: "ML Modeli", applicantLabel, applicantSkills: ["Python"] },
+      { ...baseApp, id: "app_a2", oppId: "12", oppTitle: "Yapısal Tasarım Asistanı (CAD)", teamName: "Research", applicantLabel, applicantSkills: ["PyTorch"] }
+    ];
+  }
+  return prefill;
+}
 
 function listDemoApplications(): StoredApplication[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    const raw = localStorage.getItem(getStorageKey());
+    if (!raw) {
+      const profile = localStorage.getItem("teamflow_demo_profile");
+      if (profile) return getPrefilledApplications(profile);
+      return [];
+    }
     return JSON.parse(raw) as StoredApplication[];
   } catch {
     return [];
   }
 }
 
+
 function persistDemoApplications(list: StoredApplication[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  localStorage.setItem(getStorageKey(), JSON.stringify(list));
   broadcastApplicationsUpdated();
 }
 

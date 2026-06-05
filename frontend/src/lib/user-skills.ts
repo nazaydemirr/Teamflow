@@ -18,6 +18,12 @@ export async function fetchUserSkills(): Promise<string[]> {
     } catch {
       // ignore
     }
+
+    const demoProfile = localStorage.getItem("teamflow_demo_profile");
+    if (demoProfile === "frontend") return ["React", "Next.js", "Tailwind CSS"];
+    if (demoProfile === "backend") return ["Node.js", "PostgreSQL", "Docker"];
+    if (demoProfile === "ai") return ["Python", "PyTorch", "TensorFlow"];
+
     return [];
   }
 

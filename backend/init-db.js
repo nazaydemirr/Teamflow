@@ -73,8 +73,9 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
         message TEXT NOT NULL,
-        read BOOLEAN DEFAULT FALSE,
+        is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -95,6 +96,17 @@ async function initDB() {
         status VARCHAR(50) DEFAULT 'todo',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE INDEX IF NOT EXISTS idx_opportunities_author ON opportunities(author_id);
+      CREATE INDEX IF NOT EXISTS idx_teams_opp ON teams(opp_id);
+      CREATE INDEX IF NOT EXISTS idx_teams_leader ON teams(leader_id);
+      CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id);
+      CREATE INDEX IF NOT EXISTS idx_applications_opp ON applications(opp_id);
+      CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_team ON messages(team_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_team_milestones_team ON team_milestones(team_id);
+      CREATE INDEX IF NOT EXISTS idx_team_tasks_milestone ON team_tasks(milestone_id);
     `);
 
     console.log("Tüm tablolar başarıyla oluşturuldu.");

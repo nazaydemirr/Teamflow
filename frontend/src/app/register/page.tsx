@@ -53,6 +53,9 @@ export default function RegisterPage() {
       // Save token
       localStorage.setItem("teamflow_jwt", data.token);
       localStorage.setItem("teamflow_profile_id", data.uid);
+      if (data.displayName) {
+        localStorage.setItem("teamflow_display_name", data.displayName);
+      }
       localStorage.removeItem("teamflow_demo_auth");
 
       setStatusText("Kayıt başarılı. Yönlendiriliyorsunuz...");

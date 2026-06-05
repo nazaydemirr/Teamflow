@@ -3,7 +3,7 @@
 import { useApplications } from "@/hooks/useApplications";
 import { useTeamChat } from "@/hooks/useTeamChat";
 import { addApprovedMember, deleteApplication } from "@/lib/applications";
-import { OPPORTUNITIES, type Opportunity } from "@/lib/opportunities-data";
+import { getAllOpportunities, type Opportunity } from "@/lib/opportunities-data";
 import { sendChatMessage } from "@/lib/chats";
 import { useMemo, useState, useEffect } from "react";
 
@@ -93,6 +93,52 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
   const [profileId, setProfileId] = useState("");
   const [openAccordionId, setOpenAccordionId] = useState<string | null>(null);
 
+  const [matchmakingSkill, setMatchmakingSkill] = useState("");
+  const [isMatchmaking, setIsMatchmaking] = useState(false);
+  const [matchMessage, setMatchMessage] = useState("");
+  const [matchedUsers, setMatchedUsers] = useState<any[]>([]);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
+
+  const handleInviteUser = async (userId: string, teamId: string | undefined) => {
+    setInvitingUserId(userId);
+    try {
+      const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
+      if (isDemo) {
+        await new Promise(r => setTimeout(r, 1000));
+        
+        // Target profile key (e.g. demo-backend -> teamflow_demo_notifications_backend)
+        const targetProfileName = userId.replace('demo-', '');
+        const targetProfileKey = `teamflow_demo_notifications_${targetProfileName}`;
+        
+        const currentNotifs = JSON.parse(localStorage.getItem(targetProfileKey) || "[]");
+        const newNotif = {
+          id: "demo-notif-" + Math.random().toString(36).substring(2),
+          message: `Selam! ${matchmakingSkill.trim()} yeteneğine sahip olduğunu gördüm. Ekibimizde tam da sana ihtiyacımız var!`,
+          is_read: false,
+          team_id: teamId || "demo-team",
+          created_at: new Date().toISOString()
+        };
+        localStorage.setItem(targetProfileKey, JSON.stringify([newNotif, ...currentNotifs]));
+        
+        window.dispatchEvent(new Event("teamflow-notifications"));
+        alert("Davet başarıyla gönderildi!");
+      } else {
+        const { apiPost } = await import("@/lib/api");
+        await apiPost("/matchmaking/invite", {
+          user_id: userId,
+          eksik_yetenek: matchmakingSkill.trim(),
+          team_id: teamId || null
+        });
+        alert("Davet başarıyla gönderildi!");
+      }
+    } catch (error: any) {
+      alert("Davet gönderilirken hata oluştu: " + error.message);
+    } finally {
+      setInvitingUserId(null);
+    }
+  };
+
   useEffect(() => {
     if (focusTeamId) {
       setOpenAccordionId(focusTeamId);
@@ -112,13 +158,13 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
   }, []);
 
   const ledTeams = useMemo(() => {
-    return OPPORTUNITIES.filter((opp) => opp.author === userFullName);
+    return getAllOpportunities().filter((opp) => opp.author === userFullName);
   }, [userFullName]);
 
   const joinedTeams = useMemo(() => {
     const approvedApps = applications.filter(a => a.status === "Onaylandi" && (a.applicantLabel === userFullName || a.applicantLabel === "Demo kullanici"));
     const oppIds = new Set(approvedApps.map(a => a.oppId));
-    return OPPORTUNITIES.filter(opp => oppIds.has(opp.id) && opp.author !== userFullName);
+    return getAllOpportunities().filter(opp => oppIds.has(opp.id) && opp.author !== userFullName);
   }, [applications, userFullName]);
 
   const allTeams = [...ledTeams.map(t => ({...t, isLeader: true})), ...joinedTeams.map(t => ({...t, isLeader: false}))];
@@ -133,12 +179,50 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
   }
 
   return (
-    <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-4 shadow-sm sm:p-5 dark:border-white/10">
-      <h2 className="mb-4 text-xl font-semibold text-[var(--text-navy)] dark:text-slate-100">Ekiplerim</h2>
+    <div className="space-y-6">
+      {ledTeams.length > 0 && (
+        <div className="rounded-[var(--radius-lg)] border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm dark:bg-indigo-900/10 dark:border-indigo-900/30">
+          <h3 className="mb-3 text-sm font-bold text-indigo-800 dark:text-indigo-300 flex items-center gap-2">
+            <svg className="size-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>
+            Kaptanı Olduğum Takımlar
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {ledTeams.map(team => (
+              <button 
+                key={team.id}
+                onClick={() => {
+                  setOpenAccordionId(team.id);
+                  setTimeout(() => {
+                    document.getElementById(`team-accordion-${team.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 100);
+                }}
+                className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm border border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 transition-colors dark:bg-[var(--surface)] dark:text-indigo-400 dark:border-indigo-800 dark:hover:bg-indigo-900/40"
+              >
+                {team.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-4 shadow-sm sm:p-5 dark:border-white/10">
+        <h2 className="mb-4 text-xl font-semibold text-[var(--text-navy)] dark:text-slate-100">Ekiplerim</h2>
       <div className="space-y-4">
       {allTeams.map((opp) => {
         const isLeader = opp.isLeader;
-        const members = applications.filter((a) => a.oppId === opp.id && a.status === "Onaylandi");
+        const applicantMembers = applications.filter((a) => a.oppId === opp.id && a.status === "Onaylandi");
+        
+        // Lideri otomatik olarak takıma 1 kişi olarak dahil et
+        const members = [
+          {
+            id: `leader-${opp.id}`,
+            applicantLabel: `${opp.author} (Lider)`,
+            teamName: opp.teams[0]?.name || "Kurucu",
+            isLeaderRole: true
+          },
+          ...applicantMembers.map(m => ({ ...m, isLeaderRole: false }))
+        ];
+
         const isOpen = openAccordionId === opp.id;
 
         return (
@@ -213,12 +297,176 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                         onClick={() => {
                           setAddingMemberToOpp(null);
                           setNewMemberId("");
+                          setMatchMessage("");
                         }}
                         className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[var(--text-navy)] hover:bg-slate-50 dark:border-white/20 dark:bg-transparent dark:text-slate-200"
                       >
                         Iptal
                       </button>
                     </div>
+
+                    {/* AI Matchmaking Alanı */}
+                    <div className="mt-5 pt-5 border-t border-slate-100 dark:border-white/10">
+                      <p className="mb-2 text-sm font-semibold text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
+                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Yapay Zeka ile Takım Arkadaşı Bul
+                      </p>
+                      <p className="mb-3 text-xs text-[var(--text-slate)]">Gerekli yeteneği yazın, yapay zeka veritabanını tarasın ve uygun kişilere otomatik davet mesajı göndersin.</p>
+                      <div className="flex gap-2 flex-col sm:flex-row">
+                        <input
+                          type="text"
+                          placeholder="Aranan yetenek (örn: React, Node.js)"
+                          value={matchmakingSkill}
+                          onChange={(e) => setMatchmakingSkill(e.target.value)}
+                          className="flex-1 rounded-lg border border-indigo-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-indigo-900/50 dark:bg-indigo-900/10 dark:text-slate-200"
+                        />
+                        <button
+                          disabled={isMatchmaking || !matchmakingSkill.trim()}
+                          onClick={async () => {
+                            if (!matchmakingSkill.trim()) return;
+                            setIsMatchmaking(true);
+                            setMatchMessage("");
+                            setMatchedUsers([]);
+                            setExpandedUserId(null);
+                            try {
+                              const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
+                              let response: any;
+
+                              if (isDemo) {
+                                // Mock response in Demo Mode
+                                await new Promise(r => setTimeout(r, 1000));
+                                
+                                const currentProfile = localStorage.getItem("teamflow_demo_profile") || "frontend";
+                                const allDemos = [
+                                  {
+                                    id: "demo-frontend",
+                                    displayName: "Frontend Geliştirici",
+                                    skills: ["React", "Next.js", "Tailwind CSS"],
+                                    teamsLed: [{ id: "t1", name: "Hackathon Projesi" }],
+                                    teamsJoined: [{ id: "t2", name: "E-ticaret MVP" }]
+                                  },
+                                  {
+                                    id: "demo-backend",
+                                    displayName: "Backend Geliştirici",
+                                    skills: ["Node.js", "Python", "PostgreSQL"],
+                                    teamsLed: [],
+                                    teamsJoined: [{ id: "t3", name: "Tedarik Zinciri Takip MVP" }]
+                                  },
+                                  {
+                                    id: "demo-ai",
+                                    displayName: "Yapay Zeka Uzmanı",
+                                    skills: ["Python", "PyTorch", "TensorFlow"],
+                                    teamsLed: [{ id: "t4", name: "Açık Kaynak Dokümantasyon Asistanı" }],
+                                    teamsJoined: []
+                                  }
+                                ];
+
+                                // Kendisi dışındaki demo profillerini getir ve aranan yeteneği listelerinin başına ekle
+                                const otherProfiles = allDemos.filter(d => d.id !== `demo-${currentProfile}`);
+                                const skillLower = matchmakingSkill.trim().toLowerCase();
+                                
+                                otherProfiles.forEach(profile => {
+                                  if (!profile.skills.some(s => s.toLowerCase() === skillLower)) {
+                                    profile.skills.unshift(matchmakingSkill.trim());
+                                  }
+                                });
+
+                                response = {
+                                  items: otherProfiles
+                                };
+                              } else {
+                                const { apiGet } = await import("@/lib/api");
+                                response = await apiGet(`/matchmaking/search?skill=${encodeURIComponent(matchmakingSkill.trim())}`);
+                              }
+                              
+                              if (response.items && response.items.length > 0) {
+                                setMatchedUsers(response.items);
+                                setMatchMessage(`${response.items.length} kişi bulundu.`);
+                              } else {
+                                setMatchedUsers([]);
+                                setMatchMessage("Bu yeteneğe sahip kullanıcı bulunamadı.");
+                              }
+                            } catch (error: any) {
+                              setMatchMessage("Hata: " + (error.message || "Bir şeyler ters gitti"));
+                            } finally {
+                              setIsMatchmaking(false);
+                            }
+                          }}
+                          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                        >
+                          {isMatchmaking ? (
+                            <span className="inline-block size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                          ) : (
+                            "Kullanıcı Ara"
+                          )}
+                        </button>
+                      </div>
+                      {matchMessage && (
+                        <p className={`mt-3 text-sm ${matchMessage.startsWith("Hata") ? "text-red-500" : "text-green-600 dark:text-green-400"}`}>
+                          {matchMessage}
+                        </p>
+                      )}
+                      
+                      {matchedUsers.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                          {matchedUsers.map(user => (
+                            <div key={user.id} className="rounded-lg border border-slate-200 p-3 dark:border-white/10 bg-white dark:bg-[var(--surface-raised)]">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-[var(--text-navy)] dark:text-slate-100">{user.displayName}</div>
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                                    className="text-xs px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 transition-colors"
+                                  >
+                                    {expandedUserId === user.id ? "Detayı Gizle" : "Detay"}
+                                  </button>
+                                  <button
+                                    disabled={invitingUserId === user.id}
+                                    onClick={() => handleInviteUser(user.id, opp.teams?.[0]?.id)}
+                                    className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                  >
+                                    {invitingUserId === user.id ? "Davet Ediliyor..." : "Davet Et"}
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {expandedUserId === user.id && (
+                                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 text-sm animate-in fade-in slide-in-from-top-1">
+                                  <div className="mb-3">
+                                    <strong className="text-slate-700 dark:text-slate-300">Yetenekler:</strong>
+                                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                      {user.skills.map((skill: string, idx: number) => (
+                                        <span key={`${skill}-${idx}`} className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                          {skill}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  
+                                  {(user.teamsLed?.length > 0 || user.teamsJoined?.length > 0) ? (
+                                    <div>
+                                      <strong className="text-slate-700 dark:text-slate-300">Takım Geçmişi:</strong>
+                                      <ul className="mt-1.5 list-disc pl-4 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                                        {user.teamsLed?.map((t: any) => <li key={`led-${t.id}`}><span className="font-medium">{t.name}</span> <span className="text-indigo-500 dark:text-indigo-400">(Lider)</span></li>)}
+                                        {user.teamsJoined?.map((t: any) => <li key={`joined-${t.id}`}><span className="font-medium">{t.name}</span> (Üye)</li>)}
+                                      </ul>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <strong className="text-slate-700 dark:text-slate-300">Takım Geçmişi:</strong>
+                                      <div className="text-xs text-slate-500 mt-1 italic">Daha önce bir takıma katılmamış.</div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 )}
 
@@ -258,7 +506,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                                   <p className="text-xs text-[var(--text-slate)] dark:text-slate-400">Takim: {m.teamName}</p>
                                 </div>
                               </div>
-                              {isLeader && (
+                              {isLeader && !m.isLeaderRole && (
                                 <button
                                   onClick={async () => {
                                     await deleteApplication(m.id);
@@ -292,6 +540,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
         );
       })}
       </div>
+    </div>
     </div>
   );
 }

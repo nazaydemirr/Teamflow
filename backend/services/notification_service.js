@@ -6,13 +6,13 @@ async function getNotifications(uid) {
 }
 
 async function markAsRead(uid, notificationId) {
-  const { rowCount } = await pool.query("UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2", [notificationId, uid]);
+  const { rowCount } = await pool.query("UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2", [notificationId, uid]);
   if (rowCount === 0) throw new Error("NOT_FOUND:Bildirim bulunamadı");
   return { ok: true };
 }
 
 async function markAllAsRead(uid) {
-  const { rowCount } = await pool.query("UPDATE notifications SET read = true WHERE user_id = $1 AND read = false", [uid]);
+  const { rowCount } = await pool.query("UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false", [uid]);
   return { ok: true, count: rowCount };
 }
 

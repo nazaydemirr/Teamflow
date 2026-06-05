@@ -13,6 +13,7 @@ const applicationRoutes = require("./routes/application_routes");
 const chatRoutes = require("./routes/chat_routes");
 const notificationRoutes = require("./routes/notification_routes");
 const progressRoutes = require("./routes/progress_routes");
+const matchmakingRoutes = require("./routes/matchmaking_routes");
 const { sendError } = require("./utils/response");
 
 const app = express();
@@ -56,6 +57,7 @@ app.use("/applications", applicationRoutes);
 app.use("/chats", chatRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/progress", progressRoutes);
+app.use("/matchmaking", matchmakingRoutes);
 
 app.use((req, res) => {
   sendError(res, 404, "NOT_FOUND", "Route not found", { method: req.method, path: req.path });

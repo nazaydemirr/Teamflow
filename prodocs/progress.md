@@ -230,3 +230,24 @@ Bu dosya, chat içinde bugune kadar yapilan kod degisikliklerini ve teknik karar
   - SOA geçişine ek olarak, takımların proje gelişimlerini takip edebilecekleri yeni bir özellik eklendi.
   - `init-db.js` güncellenerek `team_milestones` (Aşamalar) ve `team_tasks` (Görevler) adında 2 yeni SQL tablosu oluşturuldu.
   - `progress_service.js` ve `progress_routes.js` oluşturularak; aşama ekleme, görev ekleme ve bu görevlerin tamamlanma durumlarına göre takımın % kaç ilerlediğini dinamik hesaplayan bir backend modülü sisteme eklendi.
+
+### 15) Kapsamlı Sistem QA (Kalite Güvencesi) ve Optimizasyonlar
+
+- **Veritabanı Performans Optimizasyonları (PostgreSQL):**
+  - Tablo büyümelerinde yaşanabilecek sorgu yavaşlamalarını önlemek için `init-db.js` içine stratejik indeksler (`CREATE INDEX`) eklendi.
+  - `opportunities(author_id)`, `teams(opp_id, leader_id)`, `applications(opp_id, applicant_id)` gibi sık kullanılan foreign key'ler üzerinden arama performansları artırıldı.
+- **Backend Güvenlik Yaması:**
+  - `matchmaking_routes.js` üzerinden çalışan Yapay Zeka entegrasyonu dış dünyaya açıktı. Buraya `authMiddleware` eklenerek sadece geçerli JWT oturumu olan kullanıcıların yapay zekayı tetikleyebilmesi sağlandı.
+- **Frontend State Senkronizasyonu (Cleanup):**
+  - "Demo Modu" ile uygulamayı test eden kullanıcıların, kendi gerçek hesaplarına giriş (`/login`) yaptıklarında eski demo verilerinin (örn. `teamflow_demo_profile`, `teamflow_apps_frontend`) tarayıcıda kalarak uygulamayı bozması sorunu çözüldü. Gerçek login başarılı olduğunda tüm demo localStorage anahtarları temizleniyor.
+
+### 16) Kullanıcı Deneyimi (UX) ve Arayüz Geliştirmeleri
+
+- **İlan Detayları Açılır Penceresi (Modal):**
+  - Profil sayfasındaki **Başvurularım** listesinde yer alan "Detaylar" butonunun davranışı değiştirildi.
+  - Artık kullanıcıyı doğrudan `/feed` sayfasına atmak yerine, ilanın tam açıklamasını, lider bilgisini ve başvuru durumunu gösteren şık bir Modal (Pencere) açılıyor.
+  - Başvuru onaylanmışsa, bu pencereden "Sohbete Git" butonuyla direkt Ekiplerim altındaki ilgili sohbet ekranına geçiş sağlanıyor.
+- **Takım Kurucu Liderlik Akışı ("Senin Takımın" ve "Kaptanı Olduğum Takımlar"):**
+  - Kullanıcı yeni bir takım ilan oluşturduğunda (CreateOpportunityModal) artık ilan sahibi olarak kendi profili atanıyor ve varsayılan olarak takımın lideri (1. kişi) olarak kaydediliyor.
+  - Ekiplerim (MyTeamsManager) bölümüne **"Kaptanı Olduğum Takımlar"** adında özel bir hızlı erişim başlığı eklendi. Burada listelenen takım isimlerine tıklandığında sayfa otomatik olarak (smooth scroll) o akordeona kayıyor.
+  - Fırsat Akışı'nda (Feed) kullanıcı kendi kurduğu bir ilanı gördüğünde "Takıma Katıl" butonu yerine yeşil renkli **"Senin Takımın"** butonu çıkıyor ve kendi takımına tekrar başvurması engellenerek direkt Profil sayfasına yönlendiriliyor.

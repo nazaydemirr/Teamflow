@@ -43,20 +43,33 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
       const isDemo = typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true";
       
       if (isDemo) {
-        // Demo Mode Save
+        const demoProfileType = localStorage.getItem("teamflow_demo_profile");
+        let demoFullName = "Demo Kullanici";
+        let demoInitials = "DK";
+        if (demoProfileType === "frontend") {
+           demoFullName = "Frontend Geliştirici (Demo)";
+           demoInitials = "FG";
+        } else if (demoProfileType === "backend") {
+           demoFullName = "Backend Geliştirici (Demo)";
+           demoInitials = "BG";
+        } else if (demoProfileType === "ai") {
+           demoFullName = "Yapay Zeka Uzmanı (Demo)";
+           demoInitials = "YU";
+        }
+
         const newOpp: Opportunity = {
           id: `custom-${Date.now()}`,
           title,
           type,
           matchPercent: 95, // High match for demo purposes
-          author: "Oturum kullanicisi",
-          authorInitials: "OK",
+          author: demoFullName,
+          authorInitials: demoInitials,
           tags: selectedTags.length > 0 ? selectedTags : ["Yeni", type],
           deadline: new Date(deadline).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }),
           membersCurrent: 1, // Author is in the team
           membersMax: finalMembersMax,
           description,
-          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false }] : [],
+          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false, isOwner: true }] : [],
         };
         
         const stored = localStorage.getItem("teamflow_custom_opportunities");
@@ -165,6 +178,7 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
                   <input 
                     type="date" 
                     required 
+                    min={new Date().toISOString().split("T")[0]}
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
                     className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"

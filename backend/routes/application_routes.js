@@ -38,6 +38,39 @@ router.get("/", authMiddleware, async (req, res) => {
 
 /**
  * @swagger
+ * /applications/accept-invite:
+ *   post:
+ *     summary: Daveti kabul eder ve takıma katılır
+ *     tags: [Applications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               team_id: { type: string }
+ *     responses:
+ *       200:
+ *         description: Takıma katılındı
+ */
+router.post("/accept-invite", authMiddleware, async (req, res) => {
+  try {
+    const result = await applicationService.acceptInvite(req.user.uid, req.body.team_id);
+    res.json(result);
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, 400, code, msg);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
+/**
+ * @swagger
  * /applications:
  *   post:
  *     summary: Yeni başvuru yapar

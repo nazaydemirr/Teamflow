@@ -14,6 +14,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [showDemoOptions, setShowDemoOptions] = useState(false);
+
+  function handleDemoLogin(profileId: string) {
+    localStorage.setItem("teamflow_demo_auth", "true");
+    localStorage.setItem("teamflow_demo_profile", profileId);
+    localStorage.setItem("teamflow_profile_id", `demo-${profileId}-${Math.floor(Math.random() * 1000)}`);
+    router.replace("/feed");
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,7 +55,18 @@ export default function LoginPage() {
       // Save token
       localStorage.setItem("teamflow_jwt", data.token);
       localStorage.setItem("teamflow_profile_id", data.uid);
+      if (data.displayName) {
+        localStorage.setItem("teamflow_display_name", data.displayName);
+      }
+      
+      // Clear all demo states
       localStorage.removeItem("teamflow_demo_auth");
+      localStorage.removeItem("teamflow_demo_profile");
+      localStorage.removeItem("teamflow_demo_notifications");
+      localStorage.removeItem("teamflow_apps_frontend");
+      localStorage.removeItem("teamflow_apps_backend");
+      localStorage.removeItem("teamflow_apps_ai");
+      localStorage.removeItem("teamflow_custom_opportunities");
 
       setStatusText("Giriş başarılı. Yönlendiriliyorsunuz...");
 
@@ -132,15 +151,55 @@ export default function LoginPage() {
           )}
 
           <div className="mt-8 flex flex-col items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-            <Link href="/forgot-password" className="font-semibold text-[var(--flow-blue)] hover:underline">
-              Şifremi Unuttum
-            </Link>
-            <p>
-              Hesabınız yok mu?{" "}
-              <Link href="/register" className="font-semibold text-[var(--flow-blue)] hover:underline">
-                Kayıt Ol
+            <div className="w-full flex flex-col items-center gap-2 pt-4 border-t border-slate-200 dark:border-white/10">
+              {!showDemoOptions ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDemoOptions(true)}
+                  className="rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Demo ile Giriş Yap
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  <p className="text-xs font-semibold text-center text-slate-500 uppercase tracking-widest mb-1">Demo Profili Seçin</p>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoLogin("frontend")}
+                    className="rounded-lg border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors"
+                  >
+                    Frontend Geliştirici (React, Next.js)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoLogin("backend")}
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors"
+                  >
+                    Backend Geliştirici (Node.js, PostgreSQL)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoLogin("ai")}
+                    className="rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-900/20 px-4 py-2 text-sm font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-100 transition-colors"
+                  >
+                    Yapay Zeka Uzmanı (Python, PyTorch)
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 mt-4">
+              <Link href="/forgot-password" className="font-semibold text-[var(--flow-blue)] hover:underline">
+                Şifremi Unuttum
               </Link>
-            </p>
+              <span>•</span>
+              <p>
+                Hesabınız yok mu?{" "}
+                <Link href="/register" className="font-semibold text-[var(--flow-blue)] hover:underline">
+                  Kayıt Ol
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>

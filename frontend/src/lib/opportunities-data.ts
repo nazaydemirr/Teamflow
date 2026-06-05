@@ -9,6 +9,7 @@ export type Team = {
   technologies?: string[];
   level?: "Başlangıç" | "Orta" | "İleri";
   communication?: "Discord" | "WhatsApp" | "Telegram";
+  isOwner?: boolean;
 };
 
 export type Opportunity = {
@@ -244,7 +245,7 @@ export type OpportunitiesPage = {
   nextCursor: string | null;
 };
 
-export function getOpportunitiesPage(limit: number, cursor: string | null | undefined): OpportunitiesPage {
+export function getAllOpportunities(): Opportunity[] {
   let customList: Opportunity[] = [];
   if (typeof window !== "undefined") {
     try {
@@ -255,8 +256,29 @@ export function getOpportunitiesPage(limit: number, cursor: string | null | unde
     }
   }
 
-  const allOpportunities = [...customList, ...OPPORTUNITIES];
+  const isDemo = typeof window !== "undefined" ? localStorage.getItem("teamflow_demo_auth") === "true" : false;
+  const profileType = typeof window !== "undefined" ? localStorage.getItem("teamflow_demo_profile") : null;
 
+  return [...customList, ...OPPORTUNITIES].map(opp => {
+    if (!isDemo || !profileType) return opp;
+    
+    // Her profilin kendi oluşturduğu takımları (lider olduğu projeleri) dinamik yapıyoruz
+    if (profileType === "frontend") {
+      if (opp.id === "4") return { ...opp, author: "Frontend Geliştirici (Demo)", authorInitials: "FG" };
+      if (opp.id === "7") return { ...opp, author: "Frontend Geliştirici (Demo)", authorInitials: "FG" };
+    } else if (profileType === "backend") {
+      if (opp.id === "6") return { ...opp, author: "Backend Geliştirici (Demo)", authorInitials: "BG" };
+      if (opp.id === "10") return { ...opp, author: "Backend Geliştirici (Demo)", authorInitials: "BG" };
+    } else if (profileType === "ai") {
+      if (opp.id === "1") return { ...opp, author: "Yapay Zeka Uzmanı (Demo)", authorInitials: "YU" };
+      if (opp.id === "8") return { ...opp, author: "Yapay Zeka Uzmanı (Demo)", authorInitials: "YU" };
+    }
+    return opp;
+  });
+}
+
+export function getOpportunitiesPage(limit: number, cursor: string | null | undefined): OpportunitiesPage {
+  const allOpportunities = getAllOpportunities();
   let start = 0;
   if (cursor != null && String(cursor).trim() !== "") {
     const parsed = parseInt(String(cursor), 10);

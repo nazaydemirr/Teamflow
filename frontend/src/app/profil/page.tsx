@@ -9,7 +9,7 @@ import { groupSkillsForDisplay } from "@/lib/skills-catalog";
 import { apiGet } from "@/lib/api";
 import { fetchUserSkills, updateUserSkills, hasMinimumSkills } from "@/lib/user-skills";
 import { fetchApplications } from "@/lib/applications";
-import { OPPORTUNITIES } from "@/lib/opportunities-data";
+import { getAllOpportunities } from "@/lib/opportunities-data";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -23,6 +23,7 @@ type Application = {
   leader: string;
   score: number;
   status: ApplicationStatus;
+  description?: string;
 };
 
 const fallbackApplications: Application[] = [];
@@ -86,6 +87,8 @@ export default function ProfilePage() {
   const [savingSkills, setSavingSkills] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [focusTeamId, setFocusTeamId] = useState<string | null>(null);
+  const [appDetailModalOpen, setAppDetailModalOpen] = useState(false);
+  const [selectedAppDetail, setSelectedAppDetail] = useState<Application | null>(null);
 
   const initials = useMemo(() => {
     const source = profile.fullName || user?.displayName || user?.email || "TF";
@@ -143,22 +146,41 @@ export default function ProfilePage() {
           const s = await fetchUserSkills();
           const apps = await fetchApplications();
           
+          const demoProfileType = localStorage.getItem("teamflow_demo_profile");
+          let demoFullName = "Demo Kullanici";
+          let demoBio = "Teamflow Demo Hesabı";
+          
+          if (demoProfileType === "frontend") {
+            demoFullName = "Frontend Geliştirici (Demo)";
+            demoBio = "React ve Next.js üzerine odaklanmış bir arayüz geliştiricisi.";
+          } else if (demoProfileType === "backend") {
+            demoFullName = "Backend Geliştirici (Demo)";
+            demoBio = "Ölçeklenebilir sistemler kuran bir arka yüz geliştiricisi.";
+          } else if (demoProfileType === "ai") {
+            demoFullName = "Yapay Zeka Uzmanı (Demo)";
+            demoBio = "Veri bilimi ve makine öğrenimi modelleri üzerinde çalışan uzman.";
+          }
+
           const formattedApps: Application[] = apps
-            .filter(a => a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici")
+            .filter(a => a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici" || a.applicantLabel === demoFullName)
             .map(a => {
-              const opp = OPPORTUNITIES.find(o => o.id === a.oppId);
+              const allOpps = getAllOpportunities();
+              const opp = allOpps.find(o => o.id === a.oppId);
               return {
                 id: a.id,
                 oppId: a.oppId,
                 title: a.oppTitle,
                 leader: opp?.author || "-",
                 score: 85, // Fake score for demo
-                status: a.status as ApplicationStatus
+                status: a.status as ApplicationStatus,
+                description: opp?.description || "Bu ilan için açıklama bulunamadı."
               };
             });
 
           setProfile((prev) => ({ 
              ...prev, 
+             fullName: demoFullName,
+             bio: demoBio,
              skillList: s, 
              applications: formattedApps 
           }));
@@ -209,6 +231,7 @@ export default function ProfilePage() {
               leader: typeof candidate.leader === "string" ? candidate.leader : "-",
               score: typeof candidate.score === "number" ? candidate.score : 0,
               status: safeStatus,
+              description: "Bu ilan için açıklama bulunamadı."
             };
           }),
           teams: rawTeams.map((item: unknown) => {
@@ -453,9 +476,9 @@ export default function ProfilePage() {
                   Henuz basvuru secimi yapilmadi.
                 </p>
               ) : (
-                profile.applications.map((app) => (
+                profile.applications.map((app, i) => (
                   <article
-                    key={app.title}
+                    key={`${app.title}-${i}`}
                     className="rounded-[var(--radius-md)] border border-slate-200 bg-[var(--surface-raised)] p-3 transition-all duration-[var(--duration)] [transition-timing-function:var(--ease)] hover:-translate-y-1 hover:shadow-lg dark:border-white/10"
                   >
                     <h3 className="text-sm font-semibold text-[var(--text-navy)]">{app.title}</h3>
@@ -474,8 +497,11 @@ export default function ProfilePage() {
                       </button>
                     )}
                     <button 
-                      onClick={() => router.push("/feed")}
-                      className="mt-2 h-9 w-full rounded-[var(--radius-md)] border border-slate-300 px-3 text-sm font-medium text-[var(--text-navy)] dark:border-white/20">
+                      onClick={() => {
+                        setSelectedAppDetail(app);
+                        setAppDetailModalOpen(true);
+                      }}
+                      className="mt-2 h-9 w-full rounded-[var(--radius-md)] border border-slate-300 px-3 text-sm font-medium text-[var(--text-navy)] dark:border-white/20 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                       Detaylar
                     </button>
                   </article>
@@ -483,6 +509,78 @@ export default function ProfilePage() {
               )}
             </div>
           </Card>
+
+          {/* Application Details Modal */}
+          {appDetailModalOpen && selectedAppDetail ? (
+            <div
+              className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4 animate-in fade-in duration-200"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setAppDetailModalOpen(false);
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal
+                aria-label="İlan Detayı"
+                className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-[var(--surface)] p-6 shadow-xl dark:border-white/10 animate-in zoom-in-95 duration-200"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="font-[var(--font-fraunces)] text-2xl font-bold text-[var(--text-navy)] dark:text-slate-50">
+                    {selectedAppDetail.title}
+                  </h3>
+                  <button
+                    onClick={() => setAppDetailModalOpen(false)}
+                    className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                  <div className="grid size-6 place-items-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                    {selectedAppDetail.leader.split(" ").map(n => n[0]).join("")}
+                  </div>
+                  <span className="font-medium text-[var(--text-navy)] dark:text-slate-200">
+                    Ekip Lideri: {selectedAppDetail.leader}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                      Proje Açıklaması
+                    </h4>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 dark:border-white/10 dark:bg-black/20 dark:text-slate-300">
+                      {selectedAppDetail.description}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-white/10">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Başvuru Durumu</p>
+                      <p className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles(selectedAppDetail.status)}`}>
+                        {selectedAppDetail.status}
+                      </p>
+                    </div>
+                    {selectedAppDetail.status === "Onaylandi" && selectedAppDetail.oppId && (
+                      <button 
+                        onClick={() => {
+                          setFocusTeamId(selectedAppDetail.oppId!);
+                          setAppDetailModalOpen(false);
+                        }}
+                        className="h-10 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm active:scale-95">
+                        Sohbete Git
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <MyTeamsManager userFullName={profile.fullName} focusTeamId={focusTeamId} onFocusClear={() => setFocusTeamId(null)} />
 

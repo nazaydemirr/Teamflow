@@ -50,6 +50,7 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
       level,
       communication,
       full: finalMembersMax <= 1,
+      isOwner: true,
     };
 
     onSuccess(newTeam);
