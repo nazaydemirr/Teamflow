@@ -7,7 +7,7 @@ import { CreateOpportunityModal } from "@/components/CreateOpportunityModal";
 import { CreateTeamModal } from "@/components/CreateTeamModal";
 import { MemberProfileModal } from "@/components/MemberProfileModal";
 import { updateOpportunity } from "@/lib/opportunities-data";
-
+import { apiPost } from "@/lib/api";
 import type { Opportunity, Team } from "@/hooks/useOpportunitiesFeed";
 import { useOpportunitiesFeed } from "@/hooks/useOpportunitiesFeed";
 import { useApplications } from "@/hooks/useApplications";
@@ -351,12 +351,35 @@ function OpportunitySidePanelBody({
     setLocalTeams(opp.teams);
   }, [opp.teams]);
 
-  const handleCreateTeamSuccess = (newTeam: Team) => {
+  const handleCreateTeamSuccess = async (newTeam: Team) => {
     if (localTeams.some(t => t.name.toLowerCase() === newTeam.name.toLowerCase())) {
       alert("Bu isimde bir takım zaten var.");
       return;
     }
-    const updatedTeams = [...localTeams, newTeam];
+    
+    let finalTeam = newTeam;
+    const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
+    if (!isDemo) {
+      try {
+        const res = await apiPost("/teams", {
+          opp_id: opp.id,
+          name: newTeam.name,
+          description: newTeam.description,
+          rolesNeeded: newTeam.rolesNeeded,
+          technologies: newTeam.technologies,
+          level: newTeam.level,
+          communication: newTeam.communication,
+          full: newTeam.full,
+          membersMax: newTeam.membersMax
+        }) as any;
+        finalTeam = { ...newTeam, id: res.id };
+      } catch (err: any) {
+        alert("Takım oluşturulurken hata: " + err.message);
+        return;
+      }
+    }
+
+    const updatedTeams = [...localTeams, finalTeam];
     setLocalTeams(updatedTeams);
     updateOpportunity(opp.id, { teams: updatedTeams });
     setIsTeamModalOpen(false);
