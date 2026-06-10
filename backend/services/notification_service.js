@@ -22,9 +22,20 @@ async function deleteNotification(uid, notificationId) {
   return { ok: true };
 }
 
+async function sendNotification(targetLabel, message) {
+  // targetLabel (display_name) ile kullanıcıyı bul
+  const { rows } = await pool.query("SELECT id FROM users WHERE display_name = $1 LIMIT 1", [targetLabel]);
+  if (rows.length === 0) throw new Error("NOT_FOUND:Kullanıcı bulunamadı");
+  
+  const userId = rows[0].id;
+  await pool.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [userId, message]);
+  return { ok: true };
+}
+
 module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  deleteNotification
+  deleteNotification,
+  sendNotification
 };

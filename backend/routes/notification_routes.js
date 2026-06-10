@@ -34,6 +34,23 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
+router.post("/send", async (req, res) => {
+  try {
+    const { target_label, message } = req.body;
+    if (!target_label || !message) {
+      return sendError(res, 400, "VALIDATION_ERROR", "target_label ve message zorunludur");
+    }
+    const result = await notificationService.sendNotification(target_label, message);
+    res.json(result);
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, 404, code, msg);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 router.patch("/read-all", async (req, res) => {
   try {
     const result = await notificationService.markAllAsRead(req.user.uid);

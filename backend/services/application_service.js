@@ -17,13 +17,19 @@ async function getApplications(uid, teamId, asLeader = false) {
     if (teamRows.length === 0) throw new Error("NOT_FOUND:Ekip bulunamadı");
     if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkiniz yok");
     
-    const { rows } = await pool.query("SELECT * FROM applications WHERE team_id = $1 AND status = 'pending'", [teamId]);
+    const { rows } = await pool.query(`
+      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills 
+      FROM applications a
+      JOIN users u ON a.applicant_id = u.id
+      WHERE a.team_id = $1 AND a.status = 'pending'
+    `, [teamId]);
     return { items: rows };
   } else if (asLeader) {
     const { rows } = await pool.query(`
-      SELECT a.* 
+      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills 
       FROM applications a
       JOIN teams t ON a.team_id = t.id
+      JOIN users u ON a.applicant_id = u.id
       WHERE t.leader_id = $1 AND a.status = 'pending'
     `, [uid]);
     return { items: rows };

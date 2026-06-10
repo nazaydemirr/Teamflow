@@ -77,6 +77,7 @@ export async function sendNotificationToUser(applicantLabel: string, message: st
     broadcastNotificationsUpdated();
   } catch (err) {
     console.error("API Error sending notification to user:", err);
+    throw err;
   }
 }
 
