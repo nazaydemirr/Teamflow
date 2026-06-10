@@ -107,17 +107,15 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      const { apiPost } = await import("@/lib/api");
-      const email = profile === "frontend" ? "demo@teamflow.com" : `${profile}@teamflow.com`;
-      const password = profile === "frontend" ? "demo123" : `${profile}123`;
+      await simulateDelay(800); // Mock network delay
+      const uid = `demo-${profile}-${Math.floor(Math.random() * 1000)}`;
+      const token = `fake-jwt-for-${profile}`;
       
-      const res = await apiPost("/auth/login", { email, password }) as { token: string, uid: string, displayName: string };
-      
-      localStorage.setItem("teamflow_jwt", res.token);
+      localStorage.setItem("teamflow_jwt", token);
       localStorage.setItem("teamflow_demo_auth", "true");
       localStorage.setItem("teamflow_demo_profile", profile);
-      localStorage.setItem("teamflow_profile_id", res.uid);
-      localStorage.setItem("teamflow_display_name", res.displayName || name);
+      localStorage.setItem("teamflow_profile_id", uid);
+      localStorage.setItem("teamflow_display_name", name);
       
       router.replace("/feed");
     } catch (err: any) {

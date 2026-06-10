@@ -68,6 +68,32 @@ async function resetPassword({ email, newPassword }) {
   return { message: "Şifreniz başarıyla güncellendi." };
 }
 
+async function socialLoginUser({ provider, email, displayName }) {
+  if (!email || !provider || !displayName) {
+    throw new Error("VALIDATION_ERROR:provider, email ve displayName zorunludur.");
+  }
+
+  const { rows } = await pool.query("SELECT * FROM users WHERE email = $1 LIMIT 1", [email]);
+  let user;
+
+  if (rows.length === 0) {
+    const salt = await bcrypt.genSalt(10);
+    const randomPassword = require("crypto").randomBytes(16).toString("hex");
+    const passwordHash = await bcrypt.hash(randomPassword, salt);
+
+    const { rows: newRows } = await pool.query(
+      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name",
+      [email, passwordHash, displayName]
+    );
+    user = newRows[0];
+  } else {
+    user = rows[0];
+  }
+
+  const token = jwt.sign({ uid: user.id || user.id }, JWT_SECRET, { expiresIn: "7d" });
+  return { token, uid: user.id, email: user.email, displayName: user.display_name };
+}
+
 async function updateProfile(uid, body) {
   const { university, department, grade, skills, interests, experience_level, github_url, linkedin_url, website_url } = body;
   
@@ -95,6 +121,7 @@ async function updateProfile(uid, body) {
 module.exports = {
   registerUser,
   loginUser,
+  socialLoginUser,
   resetPassword,
   updateProfile
 };

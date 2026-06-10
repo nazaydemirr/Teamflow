@@ -76,6 +76,19 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/social-login", async (req, res) => {
+  try {
+    const result = await authService.socialLoginUser(req.body);
+    res.status(200).json(result);
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, 400, code, msg);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 router.post("/reset-password", async (req, res) => {
   try {
     const result = await authService.resetPassword(req.body);

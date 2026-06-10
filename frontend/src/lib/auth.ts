@@ -50,13 +50,29 @@ export function checkRateLimit(): { isLocked: boolean; remainingSeconds: number 
 
 // Ortak Sosyal Giriş Davranışı
 export async function mockSocialLogin(provider: "google" | "github" | "linkedin", router: any) {
-  await simulateDelay(1500); // 1.5 saniye network delay
-  
-  localStorage.setItem("teamflow_demo_auth", "true");
-  // Default to frontend for demo purposes if it's a new social login
-  localStorage.setItem("teamflow_demo_profile", "frontend");
-  localStorage.setItem("teamflow_profile_id", `${provider}-${Math.floor(Math.random() * 10000)}`);
-  localStorage.setItem("teamflow_display_name", `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`);
-  
-  router.replace("/feed");
+  try {
+    const { apiPost } = await import("@/lib/api");
+    const displayName = `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`;
+    // Consistent mock email per provider to resume the same user session
+    const email = `${provider}_user@teamflow.mock`;
+    
+    const res = await apiPost("/auth/social-login", { provider, email, displayName }) as { token: string, uid: string, displayName: string };
+
+    localStorage.setItem("teamflow_jwt", res.token);
+    localStorage.setItem("teamflow_demo_auth", "false"); // Ensure demo mode is OFF
+    localStorage.removeItem("teamflow_demo_profile");
+    localStorage.setItem("teamflow_profile_id", res.uid);
+    localStorage.setItem("teamflow_display_name", res.displayName || displayName);
+    
+    router.replace("/feed");
+  } catch (err: any) {
+    console.error("Sosyal giriş hatası:", err);
+    // Fallback if backend doesn't support social-login yet (e.g., pending deployment)
+    await simulateDelay(1000);
+    localStorage.setItem("teamflow_demo_auth", "false");
+    localStorage.removeItem("teamflow_demo_profile");
+    localStorage.setItem("teamflow_profile_id", `${provider}-fallback`);
+    localStorage.setItem("teamflow_display_name", `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`);
+    router.replace("/feed");
+  }
 }
