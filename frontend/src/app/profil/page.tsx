@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { MyTeamsManager } from "@/components/MyTeamsManager";
 import { SkillTagPicker } from "@/components/SkillTagPicker";
 import { groupSkillsForDisplay } from "@/lib/skills-catalog";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPatch } from "@/lib/api";
 import { fetchUserSkills, updateUserSkills, hasMinimumSkills } from "@/lib/user-skills";
 import { fetchUserProfileDetails, updateUserProfileDetails, type UserProfileDetails } from "@/lib/user-profile";
 import { fetchApplications, deleteApplication } from "@/lib/applications";
@@ -209,7 +209,15 @@ export default function ProfilePage() {
       try {
         const raw = (await apiGet("/me")) as any;
         setUser({ uid: raw.uid, displayName: raw.displayName, email: raw.email });
-        const profileDetails = await fetchUserProfileDetails();
+        const localDetails = await fetchUserProfileDetails();
+        const profileDetails = {
+          university: raw.university || localDetails.university || "",
+          department: raw.department || localDetails.department || "",
+          classLevel: raw.grade || localDetails.classLevel || "",
+          bio: raw.bio || localDetails.bio || "",
+          githubUrl: raw.github_url || localDetails.githubUrl || "",
+          linkedinUrl: raw.linkedin_url || localDetails.linkedinUrl || ""
+        };
 
         const apps = await fetchApplications();
         const rawTeams = Array.isArray(raw.teams) ? raw.teams : fallbackTeams;
@@ -786,8 +794,23 @@ export default function ProfilePage() {
                   disabled={savingDetails}
                   onClick={async () => {
                     setSavingDetails(true);
-                    await updateUserProfileDetails(modalDetails);
-                    setProfile(prev => ({ ...prev, details: modalDetails, bio: modalDetails.bio || prev.bio }));
+                    try {
+                      await updateUserProfileDetails(modalDetails);
+                      if (!isDemoSession) {
+                        await apiPatch("/auth/profile", {
+                          university: modalDetails.university,
+                          department: modalDetails.department,
+                          grade: modalDetails.classLevel,
+                          bio: modalDetails.bio,
+                          github_url: modalDetails.githubUrl,
+                          linkedin_url: modalDetails.linkedinUrl,
+                        });
+                      }
+                      setProfile(prev => ({ ...prev, details: modalDetails, bio: modalDetails.bio || prev.bio }));
+                    } catch (err) {
+                      console.error("Profil kaydedilemedi", err);
+                      alert("Profil kaydedilirken hata oluştu");
+                    }
                     setSavingDetails(false);
                     setDetailsModalOpen(false);
                   }}
