@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { SkillTagPicker } from "@/components/SkillTagPicker";
 import { apiPost } from "@/lib/api";
+import { useApplications } from "@/hooks/useApplications";
 import type { Opportunity } from "@/lib/opportunities-data";
 
 type CreateOpportunityModalProps = {
@@ -12,32 +14,61 @@ type CreateOpportunityModalProps = {
 };
 
 export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpportunityModalProps) {
+  const { leaderCount } = useApplications();
   const [type, setType] = useState<"hackathon" | "yarisma" | "bitirme-projesi" | null>(null);
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [membersMax, setMembersMax] = useState<number | "">(4);
   const [description, setDescription] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setType(null);
+      setTitle("");
+      setDeadline("");
+      setDescription("");
+      setStudentId("");
+      setSelectedTags([]);
+      setError("");
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (leaderCount >= 3) {
+      alert("Maksimum ekip liderliği limitine ulaştınız. Bir kullanıcı aynı anda en fazla 3 ekibin lideri olabilir. Bu nedenle yeni bir ekip oluşturamazsınız.");
+      return;
+    }
+
     if (!type) {
       setError("Lütfen bir tür seçin.");
       return;
     }
-    if (type === "bitirme-projesi" && !description.trim()) {
-      setError("Bitirme projesi için açıklama zorunludur.");
+    if (!description.trim()) {
+      setError("Açıklama zorunludur.");
+      return;
+    }
+    if (type === "bitirme-projesi" && !studentId.trim()) {
+      setError("Bitirme projesi için Profil ID zorunludur.");
       return;
     }
     
     setError("");
     setIsSubmitting(true);
 
-    const finalMembersMax = Number(membersMax) || 1;
+    const finalMembersMax = 10; // Varsayılan değer, takım oluşturulurken belirlenecek
 
     try {
       const isDemo = typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true";
@@ -69,7 +100,7 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
           membersCurrent: 1, // Author is in the team
           membersMax: finalMembersMax,
           description,
-          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false, isOwner: true }] : [],
+          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false, isOwner: true, leader: { name: demoFullName, initials: demoInitials, role: "Proje Sahibi", id: studentId } }] : [],
         };
         
         const stored = localStorage.getItem("teamflow_custom_opportunities");
@@ -106,9 +137,9 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[var(--surface)] w-full max-w-2xl rounded-2xl shadow-2xl shadow-black/50 border border-slate-200 dark:border-slate-700/50 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-[var(--surface)] w-full max-w-2xl rounded-2xl overflow-hidden shadow-xl shadow-slate-300/50 dark:shadow-black/50 border border-slate-200 dark:border-slate-700/50 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
         
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700/50">
           <h2 className="text-xl font-[var(--font-fraunces)] font-medium text-[var(--text-navy)] dark:text-slate-100">
@@ -184,29 +215,29 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
                     className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">İstenen Kişi Sayısı</label>
-                  <input 
-                    type="number" 
-                    required 
-                    min={1}
-                    max={20}
-                    value={membersMax}
-                    onChange={(e) => setMembersMax(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"
-                  />
-                </div>
+                {type === "bitirme-projesi" && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Profil / Öğrenci ID</label>
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="Örn: 20210001"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex justify-between">
                   Açıklama
-                  {type !== "bitirme-projesi" && <span className="text-slate-400 font-normal">(Opsiyonel)</span>}
-                  {type === "bitirme-projesi" && <span className="text-red-500 font-normal">Zorunlu</span>}
+                  <span className="text-red-500 font-normal">Zorunlu</span>
                 </label>
                 <textarea 
                   rows={4}
-                  required={type === "bitirme-projesi"}
+                  required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all resize-none"
@@ -250,6 +281,8 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 function TypeCard({ id, title, desc, icon, selected, onClick }: any) {

@@ -2,27 +2,35 @@
 export const SKILL_CATALOG: { category: string; tags: string[] }[] = [
   {
     category: "Frontend",
-    tags: ["React", "Next.js", "TypeScript", "Tailwind CSS", "Vue", "Svelte"],
+    tags: ["React", "Next.js", "TypeScript", "Tailwind CSS", "Vue", "Svelte", "Angular", "HTML/CSS", "Nuxt.js", "Redux", "Zustand", "Material UI", "Framer Motion"],
   },
   {
     category: "Backend",
-    tags: ["Node.js", "Express", "PostgreSQL", "MongoDB", "REST API", "GraphQL"],
+    tags: ["Node.js", "Express", "PostgreSQL", "MongoDB", "REST API", "GraphQL", "NestJS", "Django", "Spring Boot", "Laravel", "MySQL", "Redis", "Kafka"],
   },
   {
-    category: "AI / Veri",
-    tags: ["Python", "AI", "LLM", "PyTorch", "ETL", "Airflow"],
+    category: "AI / Veri Bilimi",
+    tags: ["Python", "Machine Learning", "LLM", "PyTorch", "TensorFlow", "Pandas", "Hugging Face", "ETL", "Airflow", "Data Science", "Computer Vision", "NLP"],
   },
   {
     category: "Bulut & DevOps",
-    tags: ["Firebase", "Docker", "CI/CD", "GCP", "AWS"],
+    tags: ["Firebase", "Docker", "Kubernetes", "CI/CD", "AWS", "GCP", "Azure", "Terraform", "Linux", "Nginx", "GitHub Actions", "Vercel", "Supabase"],
   },
   {
-    category: "Mobil / Gömülü",
-    tags: ["React Native", "Flutter", "IoT", "C++", "Go"],
+    category: "Mobil",
+    tags: ["React Native", "Flutter", "Swift", "Kotlin", "iOS", "Android", "Expo", "Dart"],
   },
   {
-    category: "Ürün",
-    tags: ["UI/UX", "Figma", "Eğitim", "Finans", "Güvenlik", "3D"],
+    category: "Oyun & Gömülü",
+    tags: ["Unity", "Unreal Engine", "C#", "C++", "C", "Rust", "Go", "IoT", "Arduino"],
+  },
+  {
+    category: "Tasarım & Ürün",
+    tags: ["UI/UX", "Figma", "Adobe XD", "Photoshop", "Ürün Yönetimi", "Agile", "Scrum", "Proje Yönetimi", "Wireframing"],
+  },
+  {
+    category: "Alan / Sektör",
+    tags: ["Finans", "Eğitim", "Sağlık", "Oyun", "Siber Güvenlik", "E-Ticaret", "Web3", "Blockchain", "SaaS"],
   },
 ];
 

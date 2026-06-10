@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiDelete } from "@/lib/api";
+import { apiGet, apiPatch, apiDelete, apiPost } from "@/lib/api";
 
 export type StoredNotification = {
   id: string;
@@ -47,6 +47,37 @@ export function addNotification(message: string): StoredNotification | null {
     return row;
   }
   return null;
+}
+
+export async function sendNotificationToUser(applicantLabel: string, message: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    let profileKey = "frontend";
+    const labelLower = applicantLabel.toLowerCase();
+    if (labelLower.includes("backend")) profileKey = "backend";
+    else if (labelLower.includes("yapay zeka") || labelLower.includes("ai")) profileKey = "ai";
+    else if (labelLower.includes("frontend")) profileKey = "frontend";
+
+    const targetKey = `teamflow_demo_notifications_${profileKey}`;
+    const row = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      message,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    const existing = JSON.parse(localStorage.getItem(targetKey) || "[]");
+    localStorage.setItem(targetKey, JSON.stringify([row, ...existing]));
+    broadcastNotificationsUpdated();
+    return row;
+  }
+
+  try {
+    // Demo dışı (gerçek Backend) ortamında çağrılacak API isteği
+    await apiPost("/notifications/send", { target_label: applicantLabel, message });
+    broadcastNotificationsUpdated();
+  } catch (err) {
+    console.error("API Error sending notification to user:", err);
+  }
 }
 
 export async function fetchNotifications(): Promise<StoredNotification[]> {

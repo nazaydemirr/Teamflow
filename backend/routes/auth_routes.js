@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authService = require("../services/auth_service");
 const { sendError } = require("../utils/response");
+const { authMiddleware } = require("../middlewares/auth");
 
 /**
  * @swagger
@@ -84,6 +85,42 @@ router.post("/reset-password", async (req, res) => {
       const [code, msg] = err.message.split(":");
       return sendError(res, code === "NOT_FOUND" ? 404 : 400, code, msg);
     }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /auth/profile:
+ *   put:
+ *     summary: Kullanıcının profilini günceller (Onboarding)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               university: { type: string }
+ *               department: { type: string }
+ *               grade: { type: string }
+ *               skills: { type: array, items: { type: string } }
+ *               interests: { type: array, items: { type: string } }
+ *               experience_level: { type: string }
+ *               github_url: { type: string }
+ *               linkedin_url: { type: string }
+ *               website_url: { type: string }
+ *     responses:
+ *       200:
+ *         description: Profil başarıyla güncellendi
+ */
+router.patch("/profile", authMiddleware, async (req, res) => {
+  try {
+    const result = await authService.updateProfile(req.user.uid, req.body);
+    res.status(200).json(result);
+  } catch (err) {
     sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
   }
 });

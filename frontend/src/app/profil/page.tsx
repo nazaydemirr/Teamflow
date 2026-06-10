@@ -1,20 +1,20 @@
 "use client";
 
-import { NotificationBell } from "@/components/NotificationBell";
+import { SiteHeader } from "@/components/SiteHeader";
 import { MyTeamsManager } from "@/components/MyTeamsManager";
-import { ThemeToggle } from "@/components/ThemeToggle";
-
 import { SkillTagPicker } from "@/components/SkillTagPicker";
 import { groupSkillsForDisplay } from "@/lib/skills-catalog";
 import { apiGet } from "@/lib/api";
 import { fetchUserSkills, updateUserSkills, hasMinimumSkills } from "@/lib/user-skills";
-import { fetchApplications } from "@/lib/applications";
+import { fetchUserProfileDetails, updateUserProfileDetails, type UserProfileDetails } from "@/lib/user-profile";
+import { fetchApplications, deleteApplication } from "@/lib/applications";
 import { getAllOpportunities } from "@/lib/opportunities-data";
+import { useApplications } from "@/hooks/useApplications";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-type ApplicationStatus = "Onaylandi" | "Beklemede" | "Reddedildi";
+type ApplicationStatus = "Onaylandi" | "Beklemede" | "Reddedildi" | "Iptal Edildi";
 
 type Application = {
   id?: string;
@@ -41,11 +41,13 @@ type ProfileData = {
   skillList: string[];
   teams: Array<{ name: string; project: string; role: string }>;
   activities: string[];
+  details: UserProfileDetails;
 };
 
 function statusStyles(status: ApplicationStatus): string {
   if (status === "Onaylandi") return "text-emerald-700 bg-emerald-50";
   if (status === "Beklemede") return "text-amber-700 bg-amber-50";
+  if (status === "Iptal Edildi") return "text-slate-600 bg-slate-100 dark:bg-white/10 dark:text-slate-300";
   return "text-red-700 bg-red-50";
 }
 
@@ -66,6 +68,7 @@ function Card({
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { activeCount, refresh: refreshApps } = useApplications();
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
   const [user, setUser] = useState<{ uid: string; displayName?: string; email?: string; photoURL?: string } | null>(null);
@@ -80,15 +83,24 @@ export default function ProfilePage() {
     skillList: [],
     teams: fallbackTeams,
     activities: fallbackActivities,
+    details: { university: "", department: "", classLevel: "", bio: "", githubUrl: "", linkedinUrl: "" }
   });
 
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [modalDetails, setModalDetails] = useState<UserProfileDetails>({
+    university: "", department: "", classLevel: "", bio: "", githubUrl: "", linkedinUrl: ""
+  });
+  const [savingDetails, setSavingDetails] = useState(false);
   const [modalSkills, setModalSkills] = useState<string[]>([]);
   const [savingSkills, setSavingSkills] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [focusTeamId, setFocusTeamId] = useState<string | null>(null);
   const [appDetailModalOpen, setAppDetailModalOpen] = useState(false);
   const [selectedAppDetail, setSelectedAppDetail] = useState<Application | null>(null);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [appToWithdraw, setAppToWithdraw] = useState<Application | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const initials = useMemo(() => {
     const source = profile.fullName || user?.displayName || user?.email || "TF";
@@ -145,6 +157,7 @@ export default function ProfilePage() {
         try {
           const s = await fetchUserSkills();
           const apps = await fetchApplications();
+          const profileDetails = await fetchUserProfileDetails();
           
           const demoProfileType = localStorage.getItem("teamflow_demo_profile");
           let demoFullName = "Demo Kullanici";
@@ -162,7 +175,7 @@ export default function ProfilePage() {
           }
 
           const formattedApps: Application[] = apps
-            .filter(a => a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici" || a.applicantLabel === demoFullName)
+            .filter(a => (a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici" || a.applicantLabel === demoFullName) && a.status !== "Iptal Edildi")
             .map(a => {
               const allOpps = getAllOpportunities();
               const opp = allOpps.find(o => o.id === a.oppId);
@@ -180,9 +193,10 @@ export default function ProfilePage() {
           setProfile((prev) => ({ 
              ...prev, 
              fullName: demoFullName,
-             bio: demoBio,
+             bio: profileDetails.bio || demoBio,
              skillList: s, 
-             applications: formattedApps 
+             applications: formattedApps,
+             details: profileDetails
           }));
         } catch (e) {
           // ignore
@@ -195,8 +209,9 @@ export default function ProfilePage() {
       try {
         const raw = (await apiGet("/me")) as any;
         setUser({ uid: raw.uid, displayName: raw.displayName, email: raw.email });
+        const profileDetails = await fetchUserProfileDetails();
 
-        const rawApplications = Array.isArray(raw.applications) ? raw.applications : fallbackApplications;
+        const apps = await fetchApplications();
         const rawTeams = Array.isArray(raw.teams) ? raw.teams : fallbackTeams;
 
         let skillList: string[] = [];
@@ -214,22 +229,24 @@ export default function ProfilePage() {
 
         setProfile({
           fullName: typeof raw.displayName === "string" && raw.displayName ? raw.displayName : "Teamflow Kullanici",
-          bio: typeof raw.bio === "string" && raw.bio ? raw.bio : "",
+          bio: profileDetails.bio || (typeof raw.bio === "string" && raw.bio ? raw.bio : ""),
           memberSince: typeof raw.memberSince === "string" && raw.memberSince ? raw.memberSince : "",
           skillList,
-          applications: rawApplications.map((item: unknown) => {
-            const candidate = item as Partial<Application>;
-            const status = candidate.status;
+          details: profileDetails,
+          applications: apps
+            .filter((item: any) => item.status !== "Iptal Edildi")
+            .map((item: any) => {
+            const status = item.status;
             const safeStatus: ApplicationStatus =
               status === "Onaylandi" || status === "Beklemede" || status === "Reddedildi"
                 ? status
                 : "Beklemede";
             return {
-              id: candidate.id || "",
-              oppId: candidate.oppId || "",
-              title: typeof candidate.title === "string" ? candidate.title : "Basvuru",
-              leader: typeof candidate.leader === "string" ? candidate.leader : "-",
-              score: typeof candidate.score === "number" ? candidate.score : 0,
+              id: item.id || "",
+              oppId: item.oppId || "",
+              title: item.oppTitle || "Basvuru",
+              leader: "-",
+              score: 0,
               status: safeStatus,
               description: "Bu ilan için açıklama bulunamadı."
             };
@@ -262,8 +279,8 @@ export default function ProfilePage() {
     }
   }, [loading, user, isDemoSession, errorText, profile.skillList, router]);
 
-  const totalApplications = profile.applications.length;
-  const activeApplications = profile.applications.filter((item) => item.status !== "Reddedildi").length;
+  const totalApplications = 3;
+  const activeApplications = activeCount;
 
   if (loading) {
     return (
@@ -283,36 +300,12 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-[var(--background)] pb-8">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-[var(--surface)] dark:border-white/10">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-full bg-[var(--flow-blue)] text-lg font-bold text-white">
-              T
-            </div>
-            <span className="text-lg font-semibold text-[var(--text-navy)]">Teamflow</span>
-          </div>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-[var(--text-slate)] md:flex">
-            <Link href="/feed" className="hover:text-[var(--text-navy)] dark:hover:text-slate-100">
-              Firsat akisi
-            </Link>
-            <Link href="/lider/basvurular" className="hover:text-[var(--text-navy)] dark:hover:text-slate-100">
-              Lider: basvurular
-            </Link>
-            <Link href="/profil" className="text-[var(--text-navy)] dark:text-slate-100">
-              Profil
-            </Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            <NotificationBell />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <SiteHeader activeTab="profil" currentUserFullName={profile.fullName} />
 
       <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 pt-6 sm:px-6 lg:grid-cols-12">
         <section className="rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-4 shadow-sm sm:p-5 lg:col-span-12 dark:border-white/10">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4">
               {user?.photoURL ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -321,22 +314,22 @@ export default function ProfilePage() {
                   className="size-18 rounded-full border border-slate-200 object-cover"
                 />
               ) : (
-                <div className="grid size-18 place-items-center rounded-full bg-slate-200 text-2xl font-semibold text-[var(--text-slate)]">
+                <div className="grid size-18 shrink-0 place-items-center rounded-full bg-slate-200 text-2xl font-semibold text-[var(--text-slate)]">
                   {initials}
                 </div>
               )}
-              <div>
-                <h1 className="font-[var(--font-fraunces)] text-4xl font-light leading-[1.15] text-[var(--text-navy)]">
+              <div className="flex flex-col items-center sm:items-start">
+                <h1 className="font-[var(--font-fraunces)] text-3xl sm:text-4xl font-light leading-[1.15] text-[var(--text-navy)]">
                   {profile.fullName}
                 </h1>
-                <p className="text-[15px] text-[var(--text-slate)]">
+                <p className="text-[15px] mt-1 text-[var(--text-slate)]">
                   {profile.bio || "Biyografi henuz girilmedi."}
                 </p>
-                <p className="text-sm text-[var(--text-slate)]">
+                <p className="text-sm mt-1 text-[var(--text-slate)]">
                   {profile.memberSince || "Uyelik tarihi henuz secilmedi."}
                 </p>
-                <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-slate)]">
-                  <span>{user?.email ?? "demo@teamflow.com (Demo oturum)"}</span>
+                <div className="mt-2 flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-3 text-xs text-[var(--text-slate)]">
+                  <span className="truncate max-w-[200px] sm:max-w-none">{user?.email ?? "demo@teamflow.com (Demo oturum)"}</span>
                   <span className="flex items-center gap-1 rounded bg-[var(--flow-blue)]/10 px-2 py-0.5 font-mono font-medium text-[var(--flow-blue)]">
                     ID: {profileId}
                   </span>
@@ -346,7 +339,7 @@ export default function ProfilePage() {
             <div className="w-full max-w-md">
               <p className="text-lg font-semibold text-[var(--text-navy)]">Basvurularim</p>
               <p className="text-sm text-[var(--text-slate)]">
-                Toplam aktivite: {activeApplications}/{totalApplications}
+                Aktif Basvuru Kotasi: {activeApplications}/{totalApplications}
               </p>
               <div className="mt-2 h-2 rounded-full bg-slate-200">
                 <div
@@ -376,98 +369,6 @@ export default function ProfilePage() {
           </section>
         )}
 
-        <div className="space-y-4 lg:col-span-5">
-          <Card title="Yetenekler">
-            <div className="space-y-4">
-              {profile.skillList.length === 0 ? (
-                <p className="text-sm text-[var(--text-slate)]">
-                  PRD G.02/G.03: onboarding veya buradan en az uc yetenek secin.
-                </p>
-              ) : (
-                Object.entries(groupSkillsForDisplay(profile.skillList)).map(([category, items]) => (
-                  <div key={category}>
-                    <p className="mb-2 text-base font-semibold text-[var(--text-navy)] dark:text-slate-100">{category}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {items.map((item) => (
-                        <span
-                          key={`${category}-${item}`}
-                          className="rounded-full bg-[var(--skill-badge-bg)] px-3 py-1 text-sm text-[var(--skill-badge-text)]"
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <button
-              type="button"
-            onClick={async () => {
-                const fetched = await fetchUserSkills();
-                setModalSkills(profile.skillList.length ? profile.skillList : fetched);
-                setSkillsModalOpen(true);
-              }}
-              className="mt-5 rounded-[var(--radius-md)] bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] active:scale-[0.97]"
-            >
-              Yetenekleri Duzenle
-            </button>
-          </Card>
-        </div>
-
-        {skillsModalOpen ? (
-          <div
-            className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4"
-            role="presentation"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setSkillsModalOpen(false);
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal
-              aria-label="Yetenek secimi"
-              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-5 shadow-xl dark:border-white/10 dark:bg-[#1e293b]"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-[var(--font-fraunces)] text-xl text-[var(--text-navy)] dark:text-slate-50">
-                Yeteneklerini sec
-              </h3>
-              <p className="mt-1 text-sm text-[var(--text-slate)]">En az 3 etiket (PRD G.03).</p>
-              <div className="mt-4">
-                <SkillTagPicker selected={modalSkills} onChange={setModalSkills} />
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSkillsModalOpen(false)}
-                  className="rounded-[var(--radius-md)] border border-slate-300 px-4 py-2 text-sm dark:border-white/20"
-                >
-                  Iptal
-                </button>
-                <button
-                  type="button"
-                  disabled={modalSkills.length < 3 || savingSkills}
-                  onClick={async () => {
-                    setSavingSkills(true);
-                    try {
-                      await updateUserSkills(modalSkills);
-
-                      setProfile((prev) => ({ ...prev, skillList: [...modalSkills] }));
-                      setSkillsModalOpen(false);
-                    } finally {
-                      setSavingSkills(false);
-                    }
-                  }}
-                  className="rounded-[var(--radius-md)] bg-[var(--flow-blue)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-                >
-                  Kaydet
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         <div className="space-y-4 lg:col-span-7">
           <Card title="Basvurularim">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -494,6 +395,17 @@ export default function ProfilePage() {
                         onClick={() => setFocusTeamId(app.oppId!)}
                         className="mt-3 h-9 w-full rounded-[var(--radius-md)] bg-emerald-600 px-3 text-sm font-medium text-white transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] active:scale-[0.97]">
                         Ekiple Sohbet Et
+                      </button>
+                    )}
+                    {app.status === "Beklemede" && (
+                      <button
+                        onClick={() => {
+                          setAppToWithdraw(app);
+                          setWithdrawModalOpen(true);
+                        }}
+                        className="mt-3 h-9 w-full rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-600 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
+                      >
+                        Başvuruyu Geri Çek
                       </button>
                     )}
                     <button 
@@ -582,7 +494,65 @@ export default function ProfilePage() {
             </div>
           ) : null}
 
-          <MyTeamsManager userFullName={profile.fullName} focusTeamId={focusTeamId} onFocusClear={() => setFocusTeamId(null)} />
+          {/* Withdraw Application Modal */}
+          {withdrawModalOpen && appToWithdraw ? (
+            <div
+              className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4 animate-in fade-in duration-200"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget && !withdrawing) setWithdrawModalOpen(false);
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal
+                className="w-full max-w-sm rounded-2xl border border-slate-200 bg-[var(--surface)] p-6 shadow-xl dark:border-white/10 animate-in zoom-in-95 duration-200"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-xl font-bold text-[var(--text-navy)] dark:text-slate-50 mb-2">
+                  Başvuruyu Geri Çek
+                </h3>
+                <p className="text-sm text-[var(--text-slate)] dark:text-slate-400 mb-6">
+                  <b>{appToWithdraw.title}</b> ilanına yaptığınız başvuruyu geri çekmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    disabled={withdrawing}
+                    onClick={() => setWithdrawModalOpen(false)}
+                    className="rounded-[var(--radius-md)] px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    disabled={withdrawing}
+                    onClick={async () => {
+                      if (!appToWithdraw.id) return;
+                      setWithdrawing(true);
+                      try {
+                        await deleteApplication(appToWithdraw.id);
+                        refreshApps();
+                        setProfile((prev) => ({
+                          ...prev,
+                          applications: prev.applications.filter(a => a.id !== appToWithdraw.id)
+                        }));
+                        setWithdrawModalOpen(false);
+                      } catch (err) {
+                        alert("Başvuru geri çekilirken hata oluştu.");
+                      } finally {
+                        setWithdrawing(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 rounded-[var(--radius-md)] bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {withdrawing ? "Geri Çekiliyor..." : "Evet, Geri Çek"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title="Son Aktivite Akisi">
@@ -601,7 +571,236 @@ export default function ProfilePage() {
               </ul>
             </Card>
           </div>
+
+          <MyTeamsManager userFullName={profile.fullName} focusTeamId={focusTeamId} onFocusClear={() => setFocusTeamId(null)} />
         </div>
+
+        <div className="space-y-4 lg:col-span-5">
+          <Card title="Yetenekler">
+            <div className="space-y-4">
+              {profile.skillList.length === 0 ? (
+                <p className="text-sm text-[var(--text-slate)]">
+                  PRD G.02/G.03: onboarding veya buradan en az uc yetenek secin.
+                </p>
+              ) : (
+                Object.entries(groupSkillsForDisplay(profile.skillList)).map(([category, items]) => (
+                  <div key={category}>
+                    <p className="mb-2 text-base font-semibold text-[var(--text-navy)] dark:text-slate-100">{category}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {items.map((item) => (
+                        <span
+                          key={`${category}-${item}`}
+                          className="rounded-full bg-[var(--skill-badge-bg)] px-3 py-1 text-sm text-[var(--skill-badge-text)]"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const fetched = await fetchUserSkills();
+                setModalSkills(profile.skillList.length ? profile.skillList : fetched);
+                setSkillsModalOpen(true);
+              }}
+              className="mt-5 rounded-[var(--radius-md)] bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition-transform duration-[var(--duration)] [transition-timing-function:var(--ease)] active:scale-[0.97]"
+            >
+              Yetenekleri Duzenle
+            </button>
+          </Card>
+          
+          <Card title="Profil Detayları">
+            <div className="space-y-4 text-[15px] text-[var(--text-slate)]">
+              <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Üniversite:</strong> {profile.details.university || "Belirtilmedi"}</div>
+              <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Bölüm:</strong> {profile.details.department || "Belirtilmedi"}</div>
+              <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Sınıf:</strong> {profile.details.classLevel || "Belirtilmedi"}</div>
+              {profile.details.githubUrl && (
+                <div><strong className="text-[var(--text-navy)] dark:text-slate-100">GitHub:</strong> <a href={profile.details.githubUrl} target="_blank" rel="noreferrer" className="text-[var(--flow-blue)] hover:underline">{profile.details.githubUrl}</a></div>
+              )}
+              {profile.details.linkedinUrl && (
+                <div><strong className="text-[var(--text-navy)] dark:text-slate-100">LinkedIn:</strong> <a href={profile.details.linkedinUrl} target="_blank" rel="noreferrer" className="text-[var(--flow-blue)] hover:underline">{profile.details.linkedinUrl}</a></div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setModalDetails(profile.details);
+                setDetailsModalOpen(true);
+              }}
+              className="mt-5 rounded-[var(--radius-md)] border border-slate-300 dark:border-white/10 px-4 py-2 text-sm font-semibold transition-transform duration-[var(--duration)] active:scale-[0.97] text-[var(--text-navy)] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
+            >
+              Detayları Düzenle
+            </button>
+          </Card>
+        </div>
+
+        {skillsModalOpen ? (
+          <div
+            className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4"
+            role="presentation"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setSkillsModalOpen(false);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal
+              aria-label="Yetenek secimi"
+              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-5 shadow-xl dark:border-white/10 dark:bg-[#1e293b]"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-[var(--font-fraunces)] text-xl text-[var(--text-navy)] dark:text-slate-50">
+                Yeteneklerini sec
+              </h3>
+              <p className="mt-1 text-sm text-[var(--text-slate)]">En az 3 etiket (PRD G.03).</p>
+              <div className="mt-4">
+                <SkillTagPicker selected={modalSkills} onChange={setModalSkills} />
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSkillsModalOpen(false)}
+                  className="rounded-[var(--radius-md)] border border-slate-300 px-4 py-2 text-sm dark:border-white/20"
+                >
+                  Iptal
+                </button>
+                <button
+                  type="button"
+                  disabled={modalSkills.length < 3 || savingSkills}
+                  onClick={async () => {
+                    setSavingSkills(true);
+                    try {
+                      await updateUserSkills(modalSkills);
+
+                      setProfile((prev) => ({ ...prev, skillList: [...modalSkills] }));
+                      setSkillsModalOpen(false);
+                    } finally {
+                      setSavingSkills(false);
+                    }
+                  }}
+                  className="rounded-[var(--radius-md)] bg-[var(--flow-blue)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {detailsModalOpen ? (
+          <div
+            className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4"
+            role="presentation"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setDetailsModalOpen(false);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal
+              aria-label="Profil detayları"
+              className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-6 shadow-xl dark:border-white/10 dark:bg-[#1e293b]"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-[var(--font-fraunces)] text-2xl text-[var(--text-navy)] dark:text-slate-50 mb-6">
+                Profil Detaylarını Düzenle
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-300">Üniversite</label>
+                    <input 
+                      type="text" 
+                      value={modalDetails.university} 
+                      onChange={e => setModalDetails(p => ({ ...p, university: e.target.value }))}
+                      className="w-full rounded-[var(--radius-md)] border border-slate-200 bg-[var(--soft-slate)] px-4 py-2 text-sm dark:border-white/10 dark:bg-slate-900/50 focus:border-[var(--flow-blue)] focus:outline-none" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-300">Bölüm</label>
+                    <input 
+                      type="text" 
+                      value={modalDetails.department} 
+                      onChange={e => setModalDetails(p => ({ ...p, department: e.target.value }))}
+                      className="w-full rounded-[var(--radius-md)] border border-slate-200 bg-[var(--soft-slate)] px-4 py-2 text-sm dark:border-white/10 dark:bg-slate-900/50 focus:border-[var(--flow-blue)] focus:outline-none" 
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-300">Sınıf</label>
+                    <input 
+                      type="text" 
+                      value={modalDetails.classLevel} 
+                      onChange={e => setModalDetails(p => ({ ...p, classLevel: e.target.value }))}
+                      className="w-full rounded-[var(--radius-md)] border border-slate-200 bg-[var(--soft-slate)] px-4 py-2 text-sm dark:border-white/10 dark:bg-slate-900/50 focus:border-[var(--flow-blue)] focus:outline-none" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-300">Kısa Biyografi</label>
+                    <input 
+                      type="text" 
+                      value={modalDetails.bio} 
+                      onChange={e => setModalDetails(p => ({ ...p, bio: e.target.value }))}
+                      className="w-full rounded-[var(--radius-md)] border border-slate-200 bg-[var(--soft-slate)] px-4 py-2 text-sm dark:border-white/10 dark:bg-slate-900/50 focus:border-[var(--flow-blue)] focus:outline-none" 
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-300">GitHub Linki</label>
+                    <input 
+                      type="url" 
+                      value={modalDetails.githubUrl} 
+                      onChange={e => setModalDetails(p => ({ ...p, githubUrl: e.target.value }))}
+                      className="w-full rounded-[var(--radius-md)] border border-slate-200 bg-[var(--soft-slate)] px-4 py-2 text-sm dark:border-white/10 dark:bg-slate-900/50 focus:border-[var(--flow-blue)] focus:outline-none" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-[var(--text-navy)] dark:text-slate-300">LinkedIn Linki</label>
+                    <input 
+                      type="url" 
+                      value={modalDetails.linkedinUrl} 
+                      onChange={e => setModalDetails(p => ({ ...p, linkedinUrl: e.target.value }))}
+                      className="w-full rounded-[var(--radius-md)] border border-slate-200 bg-[var(--soft-slate)] px-4 py-2 text-sm dark:border-white/10 dark:bg-slate-900/50 focus:border-[var(--flow-blue)] focus:outline-none" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setDetailsModalOpen(false)}
+                  className="rounded-[var(--radius-md)] px-4 py-2 text-sm text-[var(--text-slate)] hover:bg-slate-100 dark:hover:bg-white/5"
+                >
+                  İptal
+                </button>
+                <button
+                  type="button"
+                  disabled={savingDetails}
+                  onClick={async () => {
+                    setSavingDetails(true);
+                    await updateUserProfileDetails(modalDetails);
+                    setProfile(prev => ({ ...prev, details: modalDetails, bio: modalDetails.bio || prev.bio }));
+                    setSavingDetails(false);
+                    setDetailsModalOpen(false);
+                  }}
+                  className="rounded-[var(--radius-md)] bg-[var(--flow-blue)] px-5 py-2 text-sm font-semibold text-white transition-transform active:scale-95 disabled:opacity-50"
+                >
+                  Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+
       </div>
     </main>
   );

@@ -10,11 +10,44 @@ async function initDB() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         display_name VARCHAR(255) NOT NULL,
+        university VARCHAR(255),
+        department VARCHAR(255),
+        grade VARCHAR(50),
         skills JSONB DEFAULT '[]'::jsonb,
+        interests JSONB DEFAULT '[]'::jsonb,
+        experience_level VARCHAR(50),
+        github_url VARCHAR(255),
+        linkedin_url VARCHAR(255),
         website_url VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Eğer tablolar zaten varsa, yeni kolonları ekle (hata fırlatmaz, hata verse de geçer)
+      DO $$ 
+      BEGIN 
+        BEGIN
+          ALTER TABLE users ADD COLUMN university VARCHAR(255);
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE users ADD COLUMN department VARCHAR(255);
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE users ADD COLUMN grade VARCHAR(50);
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE users ADD COLUMN interests JSONB DEFAULT '[]'::jsonb;
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE users ADD COLUMN experience_level VARCHAR(50);
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE users ADD COLUMN github_url VARCHAR(255);
+        EXCEPTION WHEN duplicate_column THEN END;
+        BEGIN
+          ALTER TABLE users ADD COLUMN linkedin_url VARCHAR(255);
+        EXCEPTION WHEN duplicate_column THEN END;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS opportunities (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -39,13 +39,13 @@ export default function Home() {
           <h1 className="mt-5 font-[var(--font-fraunces)] text-[clamp(2.125rem,5.5vw,3.5rem)] font-light leading-[1.08] tracking-tight text-[var(--text-navy)] dark:text-slate-50">
             Ekibini kur,{" "}
             <span className="bg-gradient-to-r from-[var(--flow-blue)] via-indigo-600 to-emerald-600 bg-clip-text font-normal text-transparent">
-              akisi
+              akışı
             </span>{" "}
-            degistir.
+            değiştir.
           </h1>
           <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-[var(--text-slate)] dark:text-slate-300">
-            Yarismalar ve projeler icin teknik uyumunu paylas; filtrelenebilir firsatlarda eslesme skorunu kullan,
-            kopmadan ekiplere katil.
+            Yarışmalar ve projeler için teknik uyumunu paylaş; filtrelenebilir fırsatlarda eşleşme skorunu kullan,
+            kopmadan ekiplere katıl.
           </p>
 
           <ul className="mt-8 max-w-xl space-y-3.5 text-[15px] text-[var(--text-slate)] dark:text-slate-300">
@@ -56,7 +56,7 @@ export default function Home() {
               <span>
                 <div className="flex gap-4">
                   <Link href="/login" className="font-semibold text-[var(--flow-blue)] hover:underline">
-                    Giris Yap
+                    Giriş Yap
                   </Link>
                   <span className="text-slate-300 dark:text-slate-600">|</span>
                   <Link href="/register" className="font-semibold text-[var(--flow-blue)] hover:underline">
@@ -70,13 +70,13 @@ export default function Home() {
               <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--flow-blue)]/15 text-[var(--flow-blue)]">
                 <IconCheck className="size-3.5" />
               </span>
-              <span>Etiket ve tarih filtreleriyle ilanlari kesfet; eslesme yuzdesi aninda hesaplanir.</span>
+              <span>Etiket ve tarih filtreleriyle ilanları keşfet; eşleşme yüzdesi anında hesaplanır.</span>
             </li>
             <li className="flex gap-3">
               <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
                 <IconCheck className="size-3.5" />
               </span>
-              <span>Detay panelinden takimlara basvur; lider onayi icin akis takip edilir.</span>
+              <span>Detay panelinden takımlara başvur; lider onayı için akış takip edilir.</span>
             </li>
           </ul>
 

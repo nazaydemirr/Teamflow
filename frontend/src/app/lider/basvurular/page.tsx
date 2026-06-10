@@ -3,21 +3,27 @@
 import { decideApplication, deleteApplication, tryBrowserNotify, type StoredApplication } from "@/lib/applications";
 import { useApplications } from "@/hooks/useApplications";
 import { addNotification } from "@/lib/notifications";
+import { sendNotificationToUser } from "@/lib/notifications";
+import { getAllOpportunities } from "@/lib/opportunities-data";
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileMenu } from "@/components/MobileMenu";
 import { ProfilePreviewModal } from "@/components/ProfilePreviewModal";
+import { SiteHeader } from "@/components/SiteHeader";
 
 function SwipeableApplicationRow({
   a,
   act,
   onDelete,
   onOpenProfile,
+  onMessage,
 }: {
   a: StoredApplication;
   act: (row: StoredApplication, next: StoredApplication["status"]) => Promise<void>;
   onDelete: (id: string) => void;
-  onOpenProfile: (name: string, skills: string[]) => void;
+  onOpenProfile: (app: StoredApplication) => void;
+  onMessage: (app: StoredApplication) => void;
 }) {
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -67,12 +73,7 @@ function SwipeableApplicationRow({
       <td className="px-4 py-3 font-medium text-[var(--text-navy)] dark:text-slate-100">{a.oppTitle}</td>
       <td className="px-4 py-3 text-[var(--text-slate)]">{a.teamName}</td>
       <td className="px-4 py-3 text-[var(--text-slate)]">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onOpenProfile(a.applicantLabel, a.applicantSkills); }}
-          className="text-[var(--flow-blue)] hover:underline font-semibold transition-colors"
-        >
-          {a.applicantLabel}
-        </button>
+        {a.applicantLabel}
       </td>
       <td className="max-w-[200px] px-4 py-3 text-[var(--text-slate)]">
         <span className="line-clamp-2">{a.applicantSkills.join(", ") || "—"}</span>
@@ -105,11 +106,21 @@ function SwipeableApplicationRow({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            alert(a.applicantLabel + " isimli kisiye mesajlasma modulu henuz hazirlanmadi.");
+            onMessage(a);
           }}
-          className="rounded-md bg-[var(--flow-blue)] px-2.5 py-1 text-xs font-semibold text-white transition-opacity hover:brightness-110"
+          className="rounded-md bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 px-2 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400"
         >
           Mesaj
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenProfile(a);
+          }}
+          className="rounded-md bg-slate-200 dark:bg-white/10 px-2.5 py-1 text-xs font-semibold text-[var(--text-navy)] dark:text-slate-200 transition-opacity hover:brightness-110"
+        >
+          Detay
         </button>
         <button
           type="button"
@@ -146,28 +157,82 @@ function SwipeableApplicationRow({
 export default function LeaderApplicationsPage() {
   const { applications, refresh } = useApplications();
   const [toast, setToast] = useState<string | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<{name: string, skills: string[]} | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<StoredApplication | null>(null);
+  const [messagingApp, setMessagingApp] = useState<StoredApplication | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [userFullName, setUserFullName] = useState("");
+
+  const [leaderApps, setLeaderApps] = useState<StoredApplication[]>([]);
+
+  useEffect(() => {
+    const profileType = localStorage.getItem("teamflow_demo_profile") || "frontend";
+    if (profileType === "frontend") setUserFullName("Frontend Geliştirici (Demo)");
+    else if (profileType === "backend") setUserFullName("Backend Geliştirici (Demo)");
+    else if (profileType === "ai") setUserFullName("Yapay Zeka Uzmanı (Demo)");
+    else setUserFullName("Demo Kullanici");
+  }, []);
+
+  useEffect(() => {
+    async function loadLeaderApps() {
+      const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
+      if (isDemo) {
+        if (!userFullName) return;
+        const myOppIds = new Set(getAllOpportunities().filter(o => o.author === userFullName).map(o => o.id));
+        setLeaderApps(applications.filter(a => myOppIds.has(a.oppId)));
+      } else {
+        try {
+          const { apiGet } = await import("@/lib/api");
+          const data = await apiGet("/applications?as_leader=true") as any;
+          if (data && data.items) {
+            setLeaderApps(data.items.map((item: any) => ({
+              id: item.id,
+              oppId: item.opp_id,
+              oppTitle: item.oppTitle || `İlan ${item.opp_id.substring(0, 6)}`,
+              teamName: item.team_id,
+              applicantLabel: item.applicant_label || "",
+              applicantSkills: item.applicant_skills || [],
+              status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : "Reddedildi",
+              appliedAt: item.createdAt || new Date().toISOString(),
+            })));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    loadLeaderApps();
+  }, [applications, userFullName]);
 
   async function act(row: StoredApplication, next: StoredApplication["status"]) {
     try {
-      if (next === "Onaylandi") {
-        await decideApplication(row.id, "approve");
-      } else if (next === "Reddedildi") {
-        await decideApplication(row.id, "reject");
+      const isApprove = next === "Onaylandi";
+      const approvedCount = applications.filter(a => a.applicantLabel === row.applicantLabel && a.status === "Onaylandi").length;
+      if (isApprove && approvedCount >= 3) {
+        alert("Bu kullanıcının maksimum ekip üyeliği limitine ulaştığı tespit edildi. Bir kullanıcı en fazla 3 ekipte yer alabilir. Bu nedenle bu başvuruyu onaylayamazsınız.");
+        return;
       }
+
+      const message = window.prompt(`Adaya iletmek istediğiniz ${isApprove ? 'onay' : 'red'} mesajını yazın (Opsiyonel):`, isApprove ? "Ekibimize hoş geldin!" : "Maalesef şu an için ekibimizde yer kalmadı.");
+
+      if (isApprove) {
+        await decideApplication(row.id, "approve", message || undefined);
+        await tryBrowserNotify("Başvuru Onaylandı", `${row.applicantLabel} adlı kişinin başvurusu onaylandı.`);
+      } else {
+        await decideApplication(row.id, "reject", message || undefined);
+        await tryBrowserNotify("Başvuru Reddedildi", `${row.applicantLabel} adlı kişinin başvurusu reddedildi.`);
+      }
+
       refresh();
-      const msg =
-        next === "Onaylandi"
-          ? "Basvuran onaylandi (US.03 / US.04 demo)."
-          : next === "Reddedildi"
-            ? "Basvuru reddedildi."
-            : "Durum guncellendi.";
+      const msg = isApprove ? "Basvuran onaylandi (US.03 / US.04 demo)." : "Basvuru reddedildi.";
       setToast(msg);
       setTimeout(() => setToast(null), 2600);
 
       if (next === "Onaylandi") {
         void tryBrowserNotify("Teamflow — basvuru onayi", `"${row.oppTitle}" icin talebiniz onaylandi.`);
         addNotification(`Tebrikler! "${row.oppTitle}" ilanina yaptiginiz basvuru onaylandi ve takima kabul edildiniz.`);
+        await sendNotificationToUser(row.applicantLabel, `Takım başvurunuz onaylandı. Takıma kabul edildiniz. (${row.oppTitle})`);
+      } else if (next === "Reddedildi") {
+        await sendNotificationToUser(row.applicantLabel, `Takım başvurunuz reddedildi. (${row.oppTitle})`);
       }
     } catch (err) {
       setToast("Bir hata olustu. Yetkiniz olmayabilir.");
@@ -175,17 +240,32 @@ export default function LeaderApplicationsPage() {
     }
   }
 
-  function handleDelete(id: string) {
-    deleteApplication(id);
+  async function handleDelete(id: string) {
+    await deleteApplication(id);
     refresh();
     setToast("Basvuru silindi.");
     setTimeout(() => setToast(null), 2600);
   }
 
+  async function handleSendMessage() {
+    if (!messagingApp || !messageText.trim()) return;
+    try {
+      await sendNotificationToUser(messagingApp.applicantLabel, `Başvurduğunuz "${messagingApp.oppTitle}" ilanındaki "${messagingApp.teamName}" takımının lideri size bir mesaj gönderdi: "${messageText}"`);
+      setToast("Mesaj başarıyla gönderildi.");
+      setTimeout(() => setToast(null), 2600);
+      setMessagingApp(null);
+      setMessageText("");
+    } catch (e) {
+      setToast("Mesaj gönderilirken hata oluştu.");
+      setTimeout(() => setToast(null), 2600);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-[var(--background)] px-4 pb-16 pt-10 text-[var(--foreground)]">
-      <header className="mx-auto mb-10 flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <>
+      <SiteHeader activeTab="lider" />
+      <main className="min-h-screen bg-[var(--background)] px-4 pb-16 pt-10 text-[var(--foreground)]">
+        <div className="mx-auto mb-10 max-w-5xl">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--flow-blue)]">
             PRD — US.03 Ekip lideri
           </p>
@@ -196,18 +276,6 @@ export default function LeaderApplicationsPage() {
             Tarayicide saklanan basvuru kayitlari (MVP placeholder). Gerçek kurulumda kullanici / rol filtresi ve API ile gelecektir.
           </p>
         </div>
-        <nav className="flex items-center gap-4 text-sm font-medium">
-          <Link href="/feed" className="text-[var(--flow-blue)] hover:underline">
-            Firsatlara don
-          </Link>
-          <Link href="/profil" className="text-[var(--text-navy)] hover:underline dark:text-slate-200">
-            Profil
-          </Link>
-          <div className="ml-4 border-l border-slate-200 pl-4 dark:border-white/10">
-            <ThemeToggle />
-          </div>
-        </nav>
-      </header>
 
       {toast ? (
         <div className="mx-auto mb-4 max-w-5xl rounded-[var(--radius-md)] border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-100">
@@ -228,20 +296,21 @@ export default function LeaderApplicationsPage() {
             </tr>
           </thead>
           <tbody>
-            {applications.length === 0 ? (
+            {leaderApps.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-[var(--text-slate)]">
-                  Henuz basvuru kaydi yok. Feed uzerinden &quot;Katil&quot; ile ekleyin (G.09 client-side kayit).
+                  Henuz ilanlarınıza yapılmış bir başvuru kaydı yok.
                 </td>
               </tr>
             ) : (
-              applications.map((a) => (
+              leaderApps.map((a) => (
                 <SwipeableApplicationRow 
                   key={a.id} 
                   a={a} 
                   act={act} 
                   onDelete={handleDelete} 
-                  onOpenProfile={(name, skills) => setSelectedProfile({ name, skills })}
+                  onOpenProfile={(app) => setSelectedProfile(app)}
+                  onMessage={(app) => setMessagingApp(app)}
                 />
               ))
             )}
@@ -252,9 +321,47 @@ export default function LeaderApplicationsPage() {
       <ProfilePreviewModal 
         isOpen={selectedProfile !== null} 
         onClose={() => setSelectedProfile(null)} 
-        applicantName={selectedProfile?.name || ""}
-        applicantSkills={selectedProfile?.skills || []}
+        applicant={selectedProfile}
       />
-    </main>
+
+      {messagingApp && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-[var(--surface)] p-6 shadow-xl dark:border dark:border-white/10 flex flex-col gap-4 animate-in zoom-in-95">
+            <h3 className="text-lg font-semibold text-[var(--text-navy)] dark:text-slate-100">
+              Mesaj Gönder
+            </h3>
+            <p className="text-sm text-[var(--text-slate)]">
+              {messagingApp.applicantLabel} adlı adaya mesaj gönderiyorsunuz.
+            </p>
+            <textarea
+              className="w-full h-32 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent p-3 text-sm text-[var(--text-navy)] dark:text-slate-100 outline-none focus:border-[var(--flow-blue)]"
+              placeholder="Mesajınızı buraya yazın..."
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              autoFocus
+            />
+            <div className="flex justify-end gap-3 mt-2">
+              <button
+                onClick={() => {
+                  setMessagingApp(null);
+                  setMessageText("");
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={!messageText.trim()}
+                className="px-4 py-2 text-sm font-medium bg-[var(--flow-blue)] text-white hover:brightness-110 rounded-lg disabled:opacity-50 transition-all"
+              >
+                Gönder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </main>
+    </>
   );
 }

@@ -2,8 +2,9 @@
 
 import { useApplications } from "@/hooks/useApplications";
 import { useTeamChat } from "@/hooks/useTeamChat";
-import { addApprovedMember, deleteApplication } from "@/lib/applications";
-import { getAllOpportunities, type Opportunity } from "@/lib/opportunities-data";
+import { addApprovedMember, deleteApplication, deleteApplicationsByOpp } from "@/lib/applications";
+import { getAllOpportunities, fetchMyOpportunities, deleteOpportunityAsync, type Opportunity, type Team } from "@/lib/opportunities-data";
+import { EditTeamModal } from "./EditTeamModal";
 import { sendChatMessage } from "@/lib/chats";
 import { useMemo, useState, useEffect } from "react";
 
@@ -93,6 +94,12 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
   const [profileId, setProfileId] = useState("");
   const [openAccordionId, setOpenAccordionId] = useState<string | null>(null);
 
+  const [editingOpp, setEditingOpp] = useState<Opportunity | null>(null);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [tick, setTick] = useState(0);
+  const [myOpps, setMyOpps] = useState<Opportunity[]>([]);
+  const [loadingOpps, setLoadingOpps] = useState(true);
+
   const [matchmakingSkill, setMatchmakingSkill] = useState("");
   const [isMatchmaking, setIsMatchmaking] = useState(false);
   const [matchMessage, setMatchMessage] = useState("");
@@ -157,17 +164,43 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
     if (id) setProfileId(id);
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    setLoadingOpps(true);
+    fetchMyOpportunities().then(data => {
+      if (mounted) {
+        setMyOpps(data);
+        setLoadingOpps(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, [tick]);
+
   const ledTeams = useMemo(() => {
-    return getAllOpportunities().filter((opp) => opp.author === userFullName);
-  }, [userFullName]);
+    return myOpps.filter((opp) => {
+      if (opp.author === userFullName) return true;
+      if (opp.teams) {
+        return opp.teams.some(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName);
+      }
+      return false;
+    });
+  }, [myOpps, userFullName, profileId]);
 
   const joinedTeams = useMemo(() => {
     const approvedApps = applications.filter(a => a.status === "Onaylandi" && (a.applicantLabel === userFullName || a.applicantLabel === "Demo kullanici"));
     const oppIds = new Set(approvedApps.map(a => a.oppId));
-    return getAllOpportunities().filter(opp => oppIds.has(opp.id) && opp.author !== userFullName);
-  }, [applications, userFullName]);
+    return myOpps.filter(opp => oppIds.has(opp.id) && opp.author !== userFullName);
+  }, [applications, myOpps, userFullName]);
 
   const allTeams = [...ledTeams.map(t => ({...t, isLeader: true})), ...joinedTeams.map(t => ({...t, isLeader: false}))];
+
+  if (loadingOpps) {
+    return (
+      <div className="rounded-[var(--radius-lg)] border border-slate-200 bg-[var(--surface)] p-8 shadow-sm flex justify-center items-center dark:border-white/10">
+        <span className="inline-block size-6 animate-spin rounded-full border-2 border-[var(--flow-blue)] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (allTeams.length === 0) {
     return (
@@ -225,20 +258,40 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
 
         const isOpen = openAccordionId === opp.id;
 
+        const myApp = applications.find(a => a.oppId === opp.id && a.status === "Onaylandi" && (a.applicantLabel === userFullName || a.applicantLabel === "Demo kullanici"));
+        const teamName = isLeader ? (opp.teams[0]?.name || "Proje Ekibi") : (myApp?.teamName || "Takım");
+        const leaderName = isLeader ? userFullName : (opp.teams.find(t => t.name === teamName)?.leader?.name || opp.author);
+        const effectiveType = opp.type || (opp.title.toLowerCase().includes("proje") || opp.title.toLowerCase().includes("mvp") ? "bitirme-projesi" : "hackathon");
+        const typeLabel = effectiveType === "hackathon" ? "Hackathon" : effectiveType === "yarisma" ? "Yarışma" : "Bitirme Projesi";
+        const typeColor = effectiveType === "hackathon" ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20" : effectiveType === "yarisma" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20" : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20";
+        const teamMembersCount = members.filter(m => m.teamName === teamName || m.isLeaderRole).length;
+
         return (
-          <div key={opp.id} id={`team-accordion-${opp.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-[var(--surface)] shadow-sm dark:border-white/10">
+          <div key={opp.id} id={`team-accordion-${opp.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-[var(--surface)] shadow-sm dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-700/50 transition-colors">
             {/* Accordion Header */}
             <div 
-              className="flex cursor-pointer items-center justify-between p-4 sm:p-5"
+              className="flex flex-wrap cursor-pointer items-start justify-between gap-4 p-4 sm:p-5"
               onClick={() => setOpenAccordionId(isOpen ? null : opp.id)}
             >
-              <div>
-                <span className="mb-2 inline-block rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                  {isLeader ? "AKTIF PROJE TAKIMI (LIDER)" : "AKTIF PROJE TAKIMI (UYE)"}
-                </span>
-                <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-navy)] dark:text-slate-100">{opp.title}</h2>
+              <div className="flex-1 min-w-[200px]">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="inline-block rounded-md bg-indigo-100 px-2.5 py-1 text-[10px] font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    {isLeader ? "AKTİF PROJE TAKIMI (LİDER)" : "AKTİF PROJE TAKIMI (ÜYE)"}
+                  </span>
+                  <span className={`inline-block rounded-md px-2.5 py-1 text-[10px] font-bold border ${typeColor}`}>
+                    {typeLabel}
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-navy)] dark:text-slate-100 mb-3">
+                  {effectiveType === "bitirme-projesi" ? opp.title : `${opp.title} — ${teamName}`}
+                </h2>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[var(--text-slate)]">
+                  <span className="flex items-center gap-1.5"><span className="font-semibold text-slate-700 dark:text-slate-300">Lider:</span> {leaderName}</span>
+                  <span className="flex items-center gap-1.5"><span className="font-semibold text-slate-700 dark:text-slate-300">Üye Sayısı:</span> {teamMembersCount} Kişi</span>
+                  <span className="flex items-center gap-1.5"><span className="font-semibold text-slate-700 dark:text-slate-300">Oluşturulma:</span> {opp.deadline ? "10 Nisan 2026" : "10 Nisan 2026"}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 {isLeader && (
                   <button
                     onClick={(e) => {
@@ -263,6 +316,49 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
             {/* Accordion Content */}
             {isOpen && (
               <div className="bg-[#314361] p-4 sm:p-6 dark:bg-black/40">
+                {/* Yonetim Butonlari */}
+                <div className="mb-4 flex flex-wrap gap-3">
+                  {isLeader ? (
+                    <>
+                      <button 
+                        onClick={() => {
+                          setEditingOpp(opp);
+                          setEditingTeam(opp.teams.find(t => t.name === teamName) || opp.teams[0]);
+                        }}
+                        className="rounded-lg bg-blue-50 text-blue-700 px-4 py-2 text-sm font-bold shadow-sm border border-blue-200 hover:bg-blue-100 transition-colors dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/40 dark:hover:bg-blue-900/40"
+                      >
+                        Ekibi Düzenle
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          if (window.confirm("Ekibi tamamen kapatmak istediğinize emin misiniz? Bu işlem geri alınamaz ve ekipteki tüm üyeler ekipten çıkarılacaktır.")) {
+                            await deleteApplicationsByOpp(opp.id);
+                            refresh();
+                            setTick(t => t + 1);
+                          }
+                        }}
+                        className="rounded-lg bg-red-50 text-red-700 px-4 py-2 text-sm font-bold shadow-sm border border-red-200 hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40 dark:hover:bg-red-900/40"
+                      >
+                        Ekibi Kapat
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      onClick={async () => {
+                        if (window.confirm("Bu ekipten ayrılmak istediğinize emin misiniz?")) {
+                          if (myApp) {
+                            await deleteApplication(myApp.id);
+                            refresh();
+                          }
+                        }
+                      }}
+                      className="rounded-lg bg-red-50 text-red-700 px-4 py-2 text-sm font-bold shadow-sm border border-red-200 hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40 dark:hover:bg-red-900/40"
+                    >
+                      Ekipten Ayrıl
+                    </button>
+                  )}
+                </div>
+
                 {/* Uye Ekleme Modulu */}
                 {isLeader && addingMemberToOpp === opp.id && (
                   <div className="mb-4 rounded-xl bg-white p-4 shadow-md dark:bg-[var(--surface-raised)]">
@@ -470,9 +566,9 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                   </div>
                 )}
 
-                {/* Iki Sutunlu Layout: Sol Uyeler, Sag Sohbet */}
-                <div className="grid gap-4 md:grid-cols-[300px_1fr] lg:grid-cols-[350px_1fr]">
-                  {/* Sol: Uyeler */}
+                {/* Dikey Layout: Ust Uyeler, Alt Sohbet */}
+                <div className="flex flex-col gap-4">
+                  {/* Ust: Uyeler */}
                   <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10">
                     <div className="border-b border-slate-200 p-4 dark:border-white/10">
                       <h4 className="font-semibold text-[var(--text-navy)] dark:text-slate-100 flex items-center gap-2">
@@ -509,8 +605,10 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                               {isLeader && !m.isLeaderRole && (
                                 <button
                                   onClick={async () => {
-                                    await deleteApplication(m.id);
-                                    refresh();
+                                    if (window.confirm("Bu üyeyi ekipten çıkarmak istediğinize emin misiniz?")) {
+                                      await deleteApplication(m.id);
+                                      refresh();
+                                    }
                                   }}
                                   className="rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
                                 >
@@ -529,8 +627,8 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                     </div>
                   </div>
 
-                  {/* Sag: Sohbet */}
-                  <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10">
+                  {/* Alt: Sohbet */}
+                  <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10 h-[400px]">
                     <TeamChat oppId={opp.id} userFullName={userFullName} currentProfileId={profileId} />
                   </div>
                 </div>
@@ -540,7 +638,23 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
         );
       })}
       </div>
-    </div>
+      </div>
+
+      {editingOpp && editingTeam && (
+        <EditTeamModal 
+          isOpen={true}
+          opp={editingOpp}
+          team={editingTeam}
+          onClose={() => {
+            setEditingOpp(null);
+            setEditingTeam(null);
+          }}
+          onSuccess={() => {
+            refresh();
+            setTick(t => t + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

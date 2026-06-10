@@ -25,7 +25,7 @@ const { sendError } = require("../utils/response");
  */
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const result = await applicationService.getApplications(req.user.uid, req.query.teamId);
+    const result = await applicationService.getApplications(req.user.uid, req.query.team_id, req.query.as_leader === 'true');
     res.json(result);
   } catch (err) {
     if (err.message.includes(":")) {
@@ -110,6 +110,19 @@ router.post("/:applicationId/decision", async (req, res) => {
     if (err.message.includes(":")) {
       const [code, msg] = err.message.split(":");
       return sendError(res, code === "NOT_FOUND" ? 404 : code === "FORBIDDEN" ? 403 : 400, code, msg, err.details);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const result = await applicationService.deleteApplication(req.user.uid, req.params.id);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, code === "NOT_FOUND" ? 404 : code === "FORBIDDEN" ? 403 : 400, code, msg);
     }
     sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
   }

@@ -32,6 +32,11 @@ async function createTeam(uid, body) {
     throw error;
   }
 
+  const { rows: ledTeams } = await pool.query("SELECT count(*) as count FROM teams WHERE leader_id = $1", [uid]);
+  if (parseInt(ledTeams[0].count) >= 3) {
+    throw new Error("LIMIT_REACHED:Şu anda en fazla 3 takımın lideri olabilirsiniz. Yeni bir takım oluşturamazsınız.");
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -77,8 +82,27 @@ async function leaveTeam(uid, teamId) {
   }
 }
 
+async function getTeamDetails(teamId) {
+  const { rows } = await pool.query(`
+    SELECT t.name as team_name, o.title as project_title, u.display_name as author_name
+    FROM teams t
+    JOIN opportunities o ON t.opp_id = o.id
+    JOIN users u ON o.author_id = u.id
+    WHERE t.id = $1
+  `, [teamId]);
+  
+  if (rows.length === 0) throw new Error("NOT_FOUND:Takım bulunamadı");
+  
+  return {
+    name: rows[0].team_name,
+    project: rows[0].project_title,
+    author: rows[0].author_name
+  };
+}
+
 module.exports = {
   getTeams,
   createTeam,
-  leaveTeam
+  leaveTeam,
+  getTeamDetails
 };

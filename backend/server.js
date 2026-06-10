@@ -3,6 +3,8 @@ const cors = require("cors");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth_routes");
@@ -18,11 +20,21 @@ const { sendError } = require("./utils/response");
 
 const app = express();
 
+app.use(helmet());
+
+// Genel API Rate Limiting (Brute force koruması)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 dakika
+  max: 100, // IP başına 15 dakikada en fazla 100 istek
+  message: { message: "Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin." }
+});
+app.use(apiLimiter);
+
 app.use(
   cors({
-    origin: "*",
+    origin: "*", // Canlı ortamda kendi domaininizle değiştirin
     allowedHeaders: ["authorization", "content-type"],
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS", "PUT"],
   })
 );
 app.use(express.json());

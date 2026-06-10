@@ -7,16 +7,25 @@ const applicationSchema = z.object({
 });
 
 const decisionSchema = z.object({ 
-  decision: z.enum(["approve", "reject"]) 
+  decision: z.enum(["approve", "reject"]),
+  message: z.string().optional()
 });
 
-async function getApplications(uid, teamId) {
+async function getApplications(uid, teamId, asLeader = false) {
   if (teamId) {
     const { rows: teamRows } = await pool.query("SELECT leader_id FROM teams WHERE id = $1", [teamId]);
     if (teamRows.length === 0) throw new Error("NOT_FOUND:Ekip bulunamadı");
     if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkiniz yok");
     
     const { rows } = await pool.query("SELECT * FROM applications WHERE team_id = $1 AND status = 'pending'", [teamId]);
+    return { items: rows };
+  } else if (asLeader) {
+    const { rows } = await pool.query(`
+      SELECT a.* 
+      FROM applications a
+      JOIN teams t ON a.team_id = t.id
+      WHERE t.leader_id = $1 AND a.status = 'pending'
+    `, [uid]);
     return { items: rows };
   } else {
     const { rows } = await pool.query("SELECT * FROM applications WHERE applicant_id = $1", [uid]);
@@ -32,9 +41,17 @@ async function createApplication(uid, body) {
     throw error;
   }
 
-  const { rows: pendingApps } = await pool.query("SELECT id FROM applications WHERE applicant_id = $1 AND status = 'pending'", [uid]);
-  if (pendingApps.length >= 3) {
-    throw new Error("LIMIT_REACHED:En fazla 3 aktif (pending) başvuru yapabilirsiniz.");
+  const { rows: pendingApps } = await pool.query("SELECT count(*) as count FROM applications WHERE applicant_id = $1 AND status = 'pending'", [uid]);
+  const { rows: memberTeams } = await pool.query(`
+    SELECT count(*) as count 
+    FROM team_members tm
+    JOIN teams t ON tm.team_id = t.id
+    WHERE tm.user_id = $1 AND t.leader_id != $1
+  `, [uid]);
+  const totalCount = parseInt(pendingApps[0].count) + parseInt(memberTeams[0].count);
+
+  if (totalCount >= 3) {
+    throw new Error("LIMIT_REACHED:En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
   }
   
   const { rows: members } = await pool.query("SELECT user_id FROM team_members WHERE team_id = $1 AND user_id = $2", [parsed.data.team_id, uid]);
@@ -68,18 +85,27 @@ async function handleDecision(uid, applicationId, body) {
     const appData = appRows[0];
     if (appData.status !== "pending") throw new Error("INVALID_STATE:Başvuru zaten değerlendirilmiş");
     
-    const { rows: teamRows } = await client.query("SELECT leader_id FROM teams WHERE id = $1", [appData.team_id]);
+    const { rows: teamRows } = await client.query("SELECT leader_id, name FROM teams WHERE id = $1", [appData.team_id]);
     if (teamRows.length === 0) throw new Error("NOT_FOUND:Ekip bulunamadı");
     if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkisiz işlem");
     
+    const teamName = teamRows[0].name;
+    const leaderMessage = parsed.data.message ? `\nLiderin Mesajı: "${parsed.data.message}"` : "";
+
     if (parsed.data.decision === "approve") {
       await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [appData.team_id, appData.applicant_id]);
       await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [appData.team_id]);
       await client.query("UPDATE applications SET status = 'approved' WHERE id = $1", [applicationId]);
-      await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [appData.applicant_id, "Tebrikler! Bir ekibe başvurunuz onaylandı."]);
+      await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [
+        appData.applicant_id, 
+        `Tebrikler! Başvurduğunuz "${teamName}" takımı başvurunuzu onayladı.${leaderMessage}`
+      ]);
     } else {
       await client.query("UPDATE applications SET status = 'rejected' WHERE id = $1", [applicationId]);
-      await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [appData.applicant_id, "Maalesef bir ekibe başvurunuz reddedildi."]);
+      await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [
+        appData.applicant_id, 
+        `Maalesef, başvurduğunuz "${teamName}" takımı başvurunuzu reddetti.${leaderMessage}`
+      ]);
     }
     
     await client.query("COMMIT");
@@ -135,9 +161,51 @@ async function acceptInvite(uid, teamId) {
   }
 }
 
+async function deleteApplication(uid, applicationId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // Uygulamanın ve takımın bilgilerini al
+    const { rows: appRows } = await client.query(
+      `SELECT a.id, a.applicant_id, a.team_id, a.status, t.leader_id 
+       FROM applications a
+       JOIN teams t ON a.team_id = t.id
+       WHERE a.id = $1 FOR UPDATE`, 
+      [applicationId]
+    );
+    
+    if (appRows.length === 0) throw new Error("NOT_FOUND:Başvuru bulunamadı");
+    
+    const app = appRows[0];
+    
+    // Sadece başvuru sahibi veya takım lideri iptal edebilir
+    if (app.applicant_id !== uid && app.leader_id !== uid) {
+      throw new Error("FORBIDDEN:Bu işlemi yapmaya yetkiniz yok");
+    }
+
+    // Kabul edilmiş veya reddedilmiş başvurular geri çekilemez/iptal edilemez
+    if (app.status === 'approved' || app.status === 'rejected') {
+      throw new Error("INVALID_STATE:Sonuçlanmış başvurular iptal edilemez");
+    }
+
+    // Başvuruyu iptal et (soft delete)
+    await client.query("UPDATE applications SET status = 'cancelled' WHERE id = $1", [applicationId]);
+    
+    await client.query("COMMIT");
+    return { message: "Başvuru başarıyla geri çekildi." };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getApplications,
   createApplication,
   handleDecision,
-  acceptInvite
+  acceptInvite,
+  deleteApplication
 };

@@ -59,7 +59,7 @@ npm run dev
 Frontend arayüzü varsayılan olarak `http://localhost:3000` adresinde ayağa kalkacaktır. 
 
 > **Canlıya Alma (Production):**
-> Frontend projesini production için derlemek istediğinizde `npm run build` komutunu kullanıp ardından `npm start` ile ayağa kaldırabilirsiniz. Backend için ise pm2 gibi süreç yöneticileri ile doğrudan `node index.js` komutunu çalıştırarak canlı ortama alabilirsiniz. Vercel, Railway veya Render gibi platformlar her iki servisin deployment'ı için iyi birer tercihtir.
+> Frontend projesini production için derlemek istediğinizde `npm build` komutunu kullanıp ardından `npm start` ile ayağa kaldırabilirsiniz. Backend için ise pm2 gibi süreç yöneticileri ile doğrudan `node index.js` komutunu çalıştırarak canlı ortama alabilirsiniz. Vercel, Railway veya Render gibi platformlar her iki servisin deployment'ı için iyi birer tercihtir.
 
 ## AWS Üzerinde Canlıya Alma (Production Deployment)
 

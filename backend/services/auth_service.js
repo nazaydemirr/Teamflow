@@ -68,8 +68,33 @@ async function resetPassword({ email, newPassword }) {
   return { message: "Şifreniz başarıyla güncellendi." };
 }
 
+async function updateProfile(uid, body) {
+  const { university, department, grade, skills, interests, experience_level, github_url, linkedin_url, website_url } = body;
+  
+  await pool.query(
+    `UPDATE users 
+     SET university = $1, department = $2, grade = $3, skills = $4, interests = $5, experience_level = $6, github_url = $7, linkedin_url = $8, website_url = $9, updated_at = CURRENT_TIMESTAMP 
+     WHERE id = $10`,
+    [
+      university || null, 
+      department || null, 
+      grade || null, 
+      skills ? JSON.stringify(skills) : '[]', 
+      interests ? JSON.stringify(interests) : '[]', 
+      experience_level || null, 
+      github_url || null, 
+      linkedin_url || null, 
+      website_url || null, 
+      uid
+    ]
+  );
+  
+  return { message: "Profil başarıyla güncellendi." };
+}
+
 module.exports = {
   registerUser,
   loginUser,
-  resetPassword
+  resetPassword,
+  updateProfile
 };

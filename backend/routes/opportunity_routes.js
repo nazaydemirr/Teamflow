@@ -34,6 +34,15 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/my", authMiddleware, async (req, res) => {
+  try {
+    const result = await opportunityService.getMyOpportunities(req.user.uid);
+    res.json(result);
+  } catch (err) {
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 router.get("/:id", async (req, res) => {
   try {
     const result = await opportunityService.getOpportunityById(req.params.id);

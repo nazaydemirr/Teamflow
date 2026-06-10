@@ -22,6 +22,7 @@ export function NotificationBell() {
   const [teamDetailsCache, setTeamDetailsCache] = useState<Record<string, any>>({});
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
     e.stopPropagation();
     try {
       const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
@@ -29,51 +30,81 @@ export function NotificationBell() {
         const profile = localStorage.getItem("teamflow_demo_profile") || "frontend";
         const targetProfileKey = `teamflow_demo_notifications_${profile}`;
         
+        let deleted = false;
+
         const demoNotifs = JSON.parse(localStorage.getItem(targetProfileKey) || "[]");
-        const updated = demoNotifs.filter((n: Notification) => n.id !== id);
-        localStorage.setItem(targetProfileKey, JSON.stringify(updated));
+        if (demoNotifs.some((n: Notification) => n.id === id)) {
+           const updated = demoNotifs.filter((n: Notification) => n.id !== id);
+           localStorage.setItem(targetProfileKey, JSON.stringify(updated));
+           deleted = true;
+        }
         
         const legacyNotifs = JSON.parse(localStorage.getItem("teamflow_demo_notifications") || "[]");
-        const updatedLegacy = legacyNotifs.filter((n: Notification) => n.id !== id);
-        localStorage.setItem("teamflow_demo_notifications", JSON.stringify(updatedLegacy));
+        if (legacyNotifs.some((n: Notification) => n.id === id)) {
+           const updatedLegacy = legacyNotifs.filter((n: Notification) => n.id !== id);
+           localStorage.setItem("teamflow_demo_notifications", JSON.stringify(updatedLegacy));
+           deleted = true;
+        }
 
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        if (deleted) {
+           setNotifications((prev) => prev.filter((n) => n.id !== id));
+           window.dispatchEvent(new Event("teamflow-notifications"));
+        }
         return;
       }
-      
+
       const { apiDelete } = await import("@/lib/api");
       await apiDelete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
+      window.dispatchEvent(new Event("teamflow-notifications"));
     } catch (error) {
       console.error("Bildirim silinirken hata:", error);
     }
   };
 
-  const handleToggleDetails = (teamId: string, notifId: string) => {
+  const handleToggleDetails = async (teamId: string, notifId: string) => {
     if (expandedNotifId === notifId) {
       setExpandedNotifId(null);
       return;
     }
     
     if (!teamDetailsCache[teamId]) {
-      const opps = getAllOpportunities();
-      let foundTeam = null;
-      let foundOpp = null;
-      for (const opp of opps) {
-        if (opp.teams) {
-           const t = opp.teams.find(x => x.id === teamId);
-           if (t) {
-              foundTeam = t;
-              foundOpp = opp;
-              break;
-           }
+      const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
+      if (isDemo) {
+        const opps = getAllOpportunities();
+        let foundTeam = null;
+        let foundOpp = null;
+        for (const opp of opps) {
+          if (opp.teams) {
+             const t = opp.teams.find(x => x.id === teamId);
+             if (t) {
+                foundTeam = t;
+                foundOpp = opp;
+                break;
+             }
+          }
+        }
+        
+        setTeamDetailsCache(prev => ({
+          ...prev,
+          [teamId]: foundTeam ? { name: foundTeam.name, author: foundOpp?.author, project: foundOpp?.title } : { name: "Bilinmeyen Takım" }
+        }));
+      } else {
+        try {
+          const { apiGet } = await import("@/lib/api");
+          const details = await apiGet(`/teams/${teamId}/details`) as any;
+          setTeamDetailsCache(prev => ({
+            ...prev,
+            [teamId]: details
+          }));
+        } catch (err) {
+          console.error("Takım detayı alınamadı", err);
+          setTeamDetailsCache(prev => ({
+            ...prev,
+            [teamId]: { name: "Bilinmeyen Takım" }
+          }));
         }
       }
-      
-      setTeamDetailsCache(prev => ({
-        ...prev,
-        [teamId]: foundTeam ? { name: foundTeam.name, author: foundOpp?.author, project: foundOpp?.title } : { name: "Bilinmeyen Takım" }
-      }));
     }
     
     setExpandedNotifId(notifId);

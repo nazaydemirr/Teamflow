@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { SkillTagPicker } from "@/components/SkillTagPicker";
 import type { Team } from "@/lib/opportunities-data";
+
+import { useApplications } from "@/hooks/useApplications";
 
 type CreateTeamModalProps = {
   isOpen: boolean;
@@ -11,7 +14,10 @@ type CreateTeamModalProps = {
 };
 
 export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalProps) {
+  const { leaderCount } = useApplications();
   const [name, setName] = useState("");
+  const [profileId, setProfileId] = useState("");
+  const [leaderName, setLeaderName] = useState("");
   const [description, setDescription] = useState("");
   const [membersMax, setMembersMax] = useState<number | "">(4);
   const [rolesNeeded, setRolesNeeded] = useState<string[]>([]);
@@ -20,10 +26,35 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
   const [communication, setCommunication] = useState<"Discord" | "WhatsApp" | "Telegram" | null>(null);
   const [error, setError] = useState("");
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== "undefined") {
+      setProfileId(localStorage.getItem("teamflow_profile_id") || "");
+      
+      const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
+      if (isDemo) {
+        const demoProfileType = localStorage.getItem("teamflow_demo_profile");
+        if (demoProfileType === "frontend") setLeaderName("Frontend Geliştirici (Demo)");
+        else if (demoProfileType === "backend") setLeaderName("Backend Geliştirici (Demo)");
+        else if (demoProfileType === "ai") setLeaderName("Yapay Zeka Uzmanı (Demo)");
+        else setLeaderName("Senin Profilin");
+      } else {
+        setLeaderName(localStorage.getItem("teamflow_display_name") || "Senin Profilin");
+      }
+    }
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (leaderCount >= 3) {
+      alert("Şu anda en fazla 3 takımın lideri olabilirsiniz. Yeni bir takım oluşturamazsınız.");
+      return;
+    }
+
     if (!name.trim()) {
       setError("Takım adı zorunludur.");
       return;
@@ -36,8 +67,29 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
       setError("Lütfen bir iletişim kanalı seçin.");
       return;
     }
+    if (!profileId.trim()) {
+      setError("Takım Kaptanı ID zorunludur.");
+      return;
+    }
+    if (!description.trim()) {
+      setError("Takım açıklaması zorunludur.");
+      return;
+    }
+    if (rolesNeeded.length === 0) {
+      setError("Lütfen en az bir aranan rol seçin.");
+      return;
+    }
+    if (technologies.length === 0) {
+      setError("Lütfen en az bir teknoloji seçin.");
+      return;
+    }
 
     const finalMembersMax = Number(membersMax) || 1;
+
+    let initials = "SP";
+    if (leaderName) {
+      initials = leaderName.split(" ").filter(Boolean).slice(0, 2).map(item => item[0]?.toUpperCase()).join("");
+    }
 
     const newTeam: Team = {
       id: `team-${Date.now()}`,
@@ -51,14 +103,20 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
       communication,
       full: finalMembersMax <= 1,
       isOwner: true,
+      leader: {
+        name: leaderName,
+        initials: initials,
+        role: "Takım Kaptanı",
+        id: profileId.trim(),
+      },
     };
 
     onSuccess(newTeam);
   };
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[var(--surface)] w-full max-w-3xl rounded-2xl shadow-2xl shadow-black/50 border border-slate-200 dark:border-slate-700/50 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-[var(--surface)] w-full max-w-3xl rounded-2xl overflow-hidden shadow-xl shadow-slate-300/50 dark:shadow-black/50 border border-slate-200 dark:border-slate-700/50 max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
         
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-white/[0.02] rounded-t-2xl">
           <div>
@@ -94,7 +152,7 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">İstenen Kişi Sayısı (Siz Dahil)</label>
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">İstenen Kişi Sayısı (Takım Kaptanı Dahil)</label>
               <input 
                 type="number" 
                 required 
@@ -136,20 +194,29 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
           <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Takım Seviyesi</label>
             <div className="grid grid-cols-3 gap-3">
-              {["Başlangıç", "Orta", "İleri"].map((lvl) => (
-                <button
-                  key={lvl}
-                  type="button"
-                  onClick={() => setLevel(lvl as any)}
-                  className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all ${
-                    level === lvl 
-                      ? "border-[var(--flow-blue)] bg-blue-50 dark:bg-blue-500/10 text-[var(--flow-blue)]" 
-                      : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"
-                  }`}
-                >
-                  {lvl}
-                </button>
-              ))}
+              {["Başlangıç", "Orta", "İleri"].map((lvl) => {
+                const isSelected = level === lvl;
+                let activeClass = "";
+                
+                if (isSelected) {
+                  if (lvl === "Başlangıç") activeClass = "border-transparent bg-gradient-to-r from-emerald-500 to-emerald-400 text-white shadow-lg shadow-emerald-500/25";
+                  else if (lvl === "Orta") activeClass = "border-transparent bg-gradient-to-r from-amber-500 to-amber-400 text-white shadow-lg shadow-amber-500/25";
+                  else if (lvl === "İleri") activeClass = "border-transparent bg-gradient-to-r from-rose-500 to-rose-400 text-white shadow-lg shadow-rose-500/25";
+                } else {
+                  activeClass = "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5";
+                }
+
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setLevel(lvl as any)}
+                    className={`py-2.5 px-3 rounded-xl border text-sm font-semibold transition-all duration-300 ${activeClass} ${isSelected ? "scale-[1.02]" : "active:scale-95"}`}
+                  >
+                    {lvl}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -204,4 +271,6 @@ export function CreateTeamModal({ isOpen, onClose, onSuccess }: CreateTeamModalP
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

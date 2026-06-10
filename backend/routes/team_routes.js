@@ -36,6 +36,19 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/:id/details", async (req, res) => {
+  try {
+    const result = await teamService.getTeamDetails(req.params.id);
+    res.json(result);
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, 404, code, msg);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 /**
  * @swagger
  * /teams:

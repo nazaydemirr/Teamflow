@@ -1,6 +1,6 @@
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
-export type ApplicationStatus = "Beklemede" | "Onaylandi" | "Reddedildi";
+export type ApplicationStatus = "Beklemede" | "Onaylandi" | "Reddedildi" | "Iptal Edildi";
 
 export type StoredApplication = {
   id: string;
@@ -11,6 +11,26 @@ export type StoredApplication = {
   applicantSkills: string[];
   status: ApplicationStatus;
   appliedAt: string;
+
+  // Profil Ek Bilgileri
+  applicantUniversity?: string;
+  applicantDepartment?: string;
+  applicantClassLevel?: string;
+  applicantBio?: string;
+  applicantGithub?: string;
+  applicantLinkedin?: string;
+
+  // İstatistikler
+  statsCompetitionsJoined?: number;
+  statsCompetitionsCompleted?: number;
+  statsCompetitionsLed?: number;
+  statsTeamsCreated?: number;
+  statsActiveTeams?: number;
+  statsActiveTeamsLed?: number;
+  statsActiveTeamsNames?: string[];
+  statsLedTeamsNames?: string[];
+  statsActiveApplications?: number;
+  statsPendingApplications?: boolean;
 };
 
 export function broadcastApplicationsUpdated() {
@@ -19,40 +39,62 @@ export function broadcastApplicationsUpdated() {
 }
 
 function getStorageKey() {
-  if (typeof window === "undefined") return "teamflow_applications_v1";
-  const profile = localStorage.getItem("teamflow_demo_profile");
-  if (profile) return `teamflow_apps_${profile}`;
-  return "teamflow_applications_v1";
+  return "teamflow_applications_shared_v1";
 }
 
-function getPrefilledApplications(profile: string): StoredApplication[] {
-  let applicantLabel = "Demo Kullanici";
-  let prefill: StoredApplication[] = [];
+function getPrefilledApplications(): StoredApplication[] {
   const baseApp = {
-    status: "Onaylandi" as ApplicationStatus,
-    appliedAt: new Date().toISOString()
+    appliedAt: new Date().toISOString(),
+    applicantUniversity: "Boğaziçi Üniversitesi",
+    applicantDepartment: "Bilgisayar Mühendisliği",
+    applicantClassLevel: "3. Sınıf",
+    applicantBio: "Yazılım geliştirmeye ve yeni teknolojileri keşfetmeye tutkulu.",
+    applicantGithub: "https://github.com/demo",
+    applicantLinkedin: "https://linkedin.com/in/demo",
+    statsCompetitionsJoined: 5,
+    statsCompetitionsCompleted: 3,
+    statsCompetitionsLed: 2,
+    statsTeamsCreated: 2,
+    statsActiveTeams: 2,
+    statsActiveTeamsLed: 1,
+    statsActiveTeamsNames: ["Core", "AI Research"],
+    statsLedTeamsNames: ["Core"],
+    statsActiveApplications: 1,
+    statsPendingApplications: true
   };
 
-  if (profile === "frontend") {
-    applicantLabel = "Frontend Geliştirici (Demo)";
-    prefill = [
-      { ...baseApp, id: "app_f1", oppId: "3", oppTitle: "Eğitim Platformu MVP", teamName: "Core", applicantLabel, applicantSkills: ["React"] },
-      { ...baseApp, id: "app_f2", oppId: "9", oppTitle: "İç Dokümantasyon Portalı", teamName: "DX", applicantLabel, applicantSkills: ["Next.js"] }
-    ];
-  } else if (profile === "backend") {
-    applicantLabel = "Backend Geliştirici (Demo)";
-    prefill = [
-      { ...baseApp, id: "app_b1", oppId: "5", oppTitle: "Mobil Ödeme SDK Entegrasyonu", teamName: "Mobile", applicantLabel, applicantSkills: ["Node.js"] },
-      { ...baseApp, id: "app_b2", oppId: "11", oppTitle: "Tedarik Zinciri Takip MVP", teamName: "Ops", applicantLabel, applicantSkills: ["PostgreSQL"] }
-    ];
-  } else if (profile === "ai") {
-    applicantLabel = "Yapay Zeka Uzmanı (Demo)";
-    prefill = [
-      { ...baseApp, id: "app_a1", oppId: "4", oppTitle: "Açık Kaynak Dokümantasyon Asistanı", teamName: "ML Modeli", applicantLabel, applicantSkills: ["Python"] },
-      { ...baseApp, id: "app_a2", oppId: "12", oppTitle: "Yapısal Tasarım Asistanı (CAD)", teamName: "Research", applicantLabel, applicantSkills: ["PyTorch"] }
-    ];
-  }
-  return prefill;
+  return [
+    { 
+      ...baseApp, 
+      id: "app_f1", 
+      oppId: "10", 
+      oppTitle: "IoT Akıllı Ev Platformu", 
+      teamName: "Backend Team", 
+      applicantLabel: "Frontend Geliştirici (Demo)", 
+      applicantSkills: ["React", "TypeScript"],
+      status: "Beklemede" 
+    },
+    { 
+      ...baseApp, 
+      id: "app_a1", 
+      oppId: "4", 
+      oppTitle: "Açık Kaynak Geliştirici Platformu", 
+      teamName: "Proje Ekibi", 
+      applicantLabel: "Yapay Zeka Uzmanı (Demo)", 
+      applicantSkills: ["Python", "PyTorch"],
+      status: "Beklemede" 
+    },
+    { 
+      ...baseApp, 
+      id: "app_b1", 
+      oppId: "1", 
+      oppTitle: "Finansal Veri Analizi", 
+      teamName: "Proje Ekibi", 
+      applicantLabel: "Backend Geliştirici (Demo)", 
+      applicantSkills: ["Node.js", "PostgreSQL"],
+      status: "Onaylandi" 
+    }
+  ];
 }
 
 function listDemoApplications(): StoredApplication[] {
@@ -60,9 +102,7 @@ function listDemoApplications(): StoredApplication[] {
   try {
     const raw = localStorage.getItem(getStorageKey());
     if (!raw) {
-      const profile = localStorage.getItem("teamflow_demo_profile");
-      if (profile) return getPrefilledApplications(profile);
-      return [];
+      return getPrefilledApplications();
     }
     return JSON.parse(raw) as StoredApplication[];
   } catch {
@@ -92,7 +132,7 @@ export async function fetchApplications(): Promise<StoredApplication[]> {
       teamName: item.team_id,
       applicantLabel: item.applicant_label || "",
       applicantSkills: item.applicant_skills || [],
-      status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : "Reddedildi",
+      status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : item.status === "cancelled" ? "Iptal Edildi" : "Reddedildi",
       appliedAt: item.createdAt || new Date().toISOString(),
     }));
   } catch (err) {
@@ -129,8 +169,8 @@ export async function addApprovedMember(entry: NewApplicationInput) {
 
 export async function addApplication(entry: NewApplicationInput): Promise<StoredApplication | null> {
   if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    const active = listDemoApplications().filter(a => a.status !== "Reddedildi").length;
-    if (active >= 3) return null;
+    const activeApplications = listDemoApplications().filter(a => (a.status === "Beklemede" || a.status === "Onaylandi") && a.applicantLabel === entry.applicantLabel).length;
+    if (activeApplications >= 3) return null;
     
     const row: StoredApplication = {
       ...entry,
@@ -166,7 +206,7 @@ export async function addApplication(entry: NewApplicationInput): Promise<Stored
   }
 }
 
-export async function decideApplication(id: string, action: "approve" | "reject") {
+export async function decideApplication(id: string, action: "approve" | "reject", message?: string) {
   if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
     const list = listDemoApplications().map((a) => (a.id === id ? { ...a, status: (action === "approve" ? "Onaylandi" : "Reddedildi") as ApplicationStatus } : a));
     persistDemoApplications(list);
@@ -174,7 +214,7 @@ export async function decideApplication(id: string, action: "approve" | "reject"
   }
 
   try {
-    await apiPost(`/applications/${id}/decision`, { action });
+    await apiPost(`/applications/${id}/decision`, { action, message });
     broadcastApplicationsUpdated();
   } catch (err) {
     console.error(err);
@@ -189,8 +229,21 @@ export async function deleteApplication(id: string) {
     return;
   }
 
-  // Not implemented in MVP backend, just log it
-  console.log(`Delete application ${id} not supported in MVP backend`);
+  try {
+    await apiDelete(`/applications/${id}`);
+    broadcastApplicationsUpdated();
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+}
+
+export async function deleteApplicationsByOpp(oppId: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    const list = listDemoApplications().filter((a) => a.oppId !== oppId);
+    persistDemoApplications(list);
+    return;
+  }
 }
 
 export async function tryBrowserNotify(title: string, body: string) {
