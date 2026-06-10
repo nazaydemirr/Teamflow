@@ -96,4 +96,17 @@ router.delete("/:id/leave", authMiddleware, async (req, res) => {
   }
 });
 
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const result = await teamService.deleteTeam(req.user.uid, req.params.id);
+    res.json(result);
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, code === "NOT_FOUND" ? 404 : 403, code, msg);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 module.exports = router;

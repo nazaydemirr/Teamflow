@@ -332,9 +332,19 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                       <button 
                         onClick={async () => {
                           if (window.confirm("Ekibi tamamen kapatmak istediğinize emin misiniz? Bu işlem geri alınamaz ve ekipteki tüm üyeler ekipten çıkarılacaktır.")) {
-                            await deleteApplicationsByOpp(opp.id);
-                            refresh();
-                            setTick(t => t + 1);
+                            try {
+                              const { apiDelete } = await import("@/lib/api");
+                              const myTeam = opp.teams?.find(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName) || opp.teams?.[0];
+                              if (myTeam?.id) {
+                                await apiDelete(`/teams/${myTeam.id}`);
+                              } else {
+                                alert("Kapatılacak takım bulunamadı.");
+                              }
+                              refresh();
+                              setTick(t => t + 1);
+                            } catch (e: any) {
+                              alert("Takım kapatılırken hata oluştu: " + e.message);
+                            }
                           }
                         }}
                         className="rounded-lg bg-red-50 text-red-700 px-4 py-2 text-sm font-bold shadow-sm border border-red-200 hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40 dark:hover:bg-red-900/40"

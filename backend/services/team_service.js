@@ -100,9 +100,43 @@ async function getTeamDetails(teamId) {
   };
 }
 
+async function deleteTeam(uid, teamId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // Verify the user is the leader
+    const { rows } = await client.query("SELECT leader_id FROM teams WHERE id = $1", [teamId]);
+    if (rows.length === 0) {
+      throw new Error("NOT_FOUND:Takım bulunamadı");
+    }
+    if (rows[0].leader_id !== uid) {
+      throw new Error("FORBIDDEN:Sadece takım lideri takımı kapatabilir");
+    }
+
+    // Cascade deletions for references
+    await client.query("DELETE FROM team_members WHERE team_id = $1", [teamId]);
+    await client.query("DELETE FROM applications WHERE team_id = $1", [teamId]);
+    await client.query("DELETE FROM notifications WHERE team_id = $1", [teamId]);
+    await client.query("DELETE FROM messages WHERE team_id = $1", [teamId]);
+    
+    // Delete the team
+    await client.query("DELETE FROM teams WHERE id = $1", [teamId]);
+    
+    await client.query("COMMIT");
+    return { ok: true, message: "Takım başarıyla kapatıldı" };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getTeams,
   createTeam,
   leaveTeam,
-  getTeamDetails
+  getTeamDetails,
+  deleteTeam
 };
