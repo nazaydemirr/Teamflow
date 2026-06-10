@@ -374,10 +374,15 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                       <button
                         onClick={async () => {
                           if (!newMemberId.trim()) return;
+                          const myTeam = opp.teams?.find(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName) || opp.teams?.[0];
+                          if (!myTeam?.id) {
+                            alert("Üye eklemek için önce bu ilana ait bir takım oluşturmalısınız.");
+                            return;
+                          }
                           await addApprovedMember({
                             oppId: opp.id,
                             oppTitle: opp.title,
-                            teamName: opp.teams[0]?.name || "Genel",
+                            teamName: myTeam.name,
                             applicantLabel: `Kullanici (${newMemberId.trim()})`,
                             applicantSkills: ["-"],
                           });
@@ -520,7 +525,14 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                                   </button>
                                   <button
                                     disabled={invitingUserId === user.id}
-                                    onClick={() => handleInviteUser(user.id, opp.teams?.[0]?.id)}
+                                    onClick={() => {
+                                      const myTeam = opp.teams?.find(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName) || opp.teams?.[0];
+                                      if (!myTeam?.id) {
+                                        alert("Davet göndermek için önce bu ilana ait bir takım oluşturmalısınız.");
+                                        return;
+                                      }
+                                      handleInviteUser(user.id, myTeam.id);
+                                    }}
                                     className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                                   >
                                     {invitingUserId === user.id ? "Davet Ediliyor..." : "Davet Et"}
