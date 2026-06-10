@@ -608,7 +608,7 @@ function OpportunitySidePanelBody({
             <div className="space-y-4">
             {localTeams.map((team) => {
               const isActualOwner = (profileId && team.leader?.id === profileId) || team.leader?.name === currentUserFullName;
-              const joined = joinedTeams.has(team.name);
+              const joined = joinedTeams.has(team.id);
               const blockedByCap = atApplicationCap && !joined;
               const missingSlots = team.membersMax && team.membersCurrent !== undefined ? team.membersMax - team.membersCurrent : null;
               const isFull = team.full || (missingSlots !== null && missingSlots <= 0);
@@ -641,7 +641,7 @@ function OpportunitySidePanelBody({
                               alert("En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
                               return;
                             }
-                            !disabled && onJoinTeam(team.name);
+                            !disabled && onJoinTeam(team.id);
                           }}
                           disabled={isFull || joined || isActualOwner}
                           className={`hidden sm:block shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
@@ -674,7 +674,7 @@ function OpportunitySidePanelBody({
                           alert("En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
                           return;
                         }
-                        !disabled && onJoinTeam(team.name);
+                        !disabled && onJoinTeam(team.id);
                       }}
                       disabled={isFull || joined || isActualOwner}
                       className={`shrink-0 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition-all ${
@@ -971,18 +971,18 @@ function FeedPageInner() {
   const atApplicationCap = activeCount >= 3;
 
   const handleJoinTeam = useCallback(
-    async (teamName: string) => {
+    async (teamId: string) => {
       if (!selectedOpportunity) return;
       if (atApplicationCap) {
         alert("Maksimum ekip üyeliği limitine ulaştınız. Bir kullanıcı aynı anda en fazla 3 ekipte yer alabilir. Bu nedenle yeni bir takıma başvuru yapamazsınız.");
         return;
       }
-      if (myApplications.some(a => a.oppId === selectedOpportunity.id && a.teamName === teamName && a.status !== "Reddedildi")) return;
+      if (myApplications.some(a => a.oppId === selectedOpportunity.id && a.teamName === teamId && a.status !== "Reddedildi")) return;
 
       const row = await addApplication({
         oppId: selectedOpportunity.id,
         oppTitle: selectedOpportunity.title,
-        teamName,
+        teamName: teamId,
         applicantLabel: currentUserFullName,
         applicantSkills: skills,
       });
