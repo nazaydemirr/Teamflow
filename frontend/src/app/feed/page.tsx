@@ -99,7 +99,17 @@ function parseTurkishDeadline(deadline: string) {
   const month = monthMap[normalizeText(parts[1] ?? "")];
   if (!Number.isFinite(day) || month === undefined) return null;
   const currentYear = new Date().getFullYear();
-  return new Date(currentYear, month, day, 23, 59, 59);
+}
+
+export function formatDisplayDate(dateStr: string) {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+    }
+  } catch {}
+  return dateStr;
 }
 
 type FilterPanelProps = {
@@ -379,7 +389,7 @@ function OpportunitySidePanelBody({
             <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Son Başvuru: {opp.deadline}
+            Son Başvuru: {formatDisplayDate(opp.deadline)}
           </div>
         </div>
 
@@ -1174,7 +1184,7 @@ function FeedPageInner() {
                             <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            {opp.deadline}
+                            {formatDisplayDate(opp.deadline)}
                           </span>
                           {!isBitirme && opp.teams && (
                             <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
