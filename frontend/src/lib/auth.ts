@@ -61,14 +61,18 @@ export async function handleSocialLogin(provider: "google" | "github" | "linkedi
         try {
           const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
           const fbProvider = new GoogleAuthProvider();
+          fbProvider.setCustomParameters({ prompt: 'select_account' }); // Always prompt for account selection
           const result = await signInWithPopup(auth, fbProvider);
           if (result.user) {
             email = result.user.email || email;
             displayName = result.user.displayName || displayName;
           }
-        } catch (firebaseErr) {
-          console.warn("Firebase Auth Error (Lütfen geçerli bir Firebase API Key girin):", firebaseErr);
+        } catch (firebaseErr: any) {
+          console.error("Firebase Auth Hatası:", firebaseErr);
+          throw new Error("Google ile giriş penceresi açılamadı veya iptal edildi.");
         }
+      } else {
+         throw new Error("Firebase yapılandırması eksik.");
       }
     }
     

@@ -2,14 +2,13 @@ import { env } from "@/lib/env";
 
 function resolveFetchUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
-  // Fallback to localhost:8080 to bypass remote server errors for local testing
-  const base = "http://localhost:8080";
+  const base = (env.apiBaseUrl || "http://localhost:8080").trim().replace(/\/$/, "");
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 async function getAuthToken(): Promise<string | undefined> {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem("teamflow_jwt") || undefined;
+  return localStorage.getItem("teamflow_jwt") || sessionStorage.getItem("teamflow_jwt") || undefined;
 }
 
 async function fetchWithAuth(path: string, options: RequestInit = {}) {
@@ -35,6 +34,13 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
   }
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("teamflow_jwt");
+      sessionStorage.removeItem("teamflow_jwt");
+      window.location.href = "/login";
+      return null as any; // Prevent further execution
+    }
+
     const msg = data && typeof data === "object" && data !== null && "message" in data && typeof (data as { message: unknown }).message === "string"
         ? (data as { message: string }).message
         : `İstek başarısız: ${res.status}`;

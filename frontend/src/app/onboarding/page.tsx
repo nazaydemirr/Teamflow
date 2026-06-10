@@ -68,9 +68,9 @@ export default function OnboardingPage() {
     try {
       const { apiPatch } = await import("@/lib/api");
       await apiPatch("/auth/profile", {
-        university: "", // Arayüzde yoksa boş, ileride eklenebilir
-        department: "",
-        grade: "",
+        university,
+        department,
+        grade,
         skills,
         interests,
         experience_level: expLevel,
@@ -79,8 +79,7 @@ export default function OnboardingPage() {
         website_url: portfolio
       });
       
-      // Update local storage so feed shows correct info
-      localStorage.setItem("teamflow_demo_profile", "frontend"); // varsayılan demo
+      // Onboarding complete, feed will load real data
       
       router.replace("/feed");
     } catch (err: any) {

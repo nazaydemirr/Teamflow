@@ -97,11 +97,11 @@ async function socialLoginUser({ provider, email, displayName }) {
 async function updateProfile(uid, body) {
   const { university, department, grade, skills, interests, experience_level, github_url, linkedin_url, website_url } = body;
   
-  await pool.query(
-    `UPDATE users 
+  const query = `UPDATE users 
      SET university = $1, department = $2, grade = $3, skills = $4, interests = $5, experience_level = $6, github_url = $7, linkedin_url = $8, website_url = $9, updated_at = CURRENT_TIMESTAMP 
-     WHERE id = $10`,
-    [
+     WHERE id = $10`;
+     
+  const values = [
       university || null, 
       department || null, 
       grade || null, 
@@ -112,8 +112,33 @@ async function updateProfile(uid, body) {
       linkedin_url || null, 
       website_url || null, 
       uid
-    ]
-  );
+  ];
+
+  try {
+    await pool.query(query, values);
+  } catch (err) {
+    // If the error is "column does not exist" (Postgres error code 42703)
+    if (err.code === '42703') {
+      console.log("Eksik sütunlar tespit edildi. Veritabanı şeması otomatik olarak güncelleniyor...");
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS university VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS department VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS grade VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS experience_level VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS github_url VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS website_url VARCHAR(255);
+      `);
+      console.log("Şema başarıyla güncellendi. İşlem tekrar deneniyor...");
+      // Retry the update query after schema is fixed
+      await pool.query(query, values);
+    } else {
+      throw err;
+    }
+  }
   
   return { message: "Profil başarıyla güncellendi." };
 }

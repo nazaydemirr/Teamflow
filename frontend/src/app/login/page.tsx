@@ -43,7 +43,13 @@ export default function LoginPage() {
     if (lockoutTimer > 0) return;
     setSocialLoading(provider);
     setErrorText("");
-    await handleSocialLogin(provider, router);
+    try {
+      await handleSocialLogin(provider, router);
+    } catch (err: any) {
+      setErrorText(err.message || "Sosyal giriş başarısız oldu.");
+    } finally {
+      setSocialLoading(null);
+    }
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
