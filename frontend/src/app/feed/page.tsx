@@ -555,7 +555,7 @@ function OpportunitySidePanelBody({
               {(() => {
                 const team = localTeams[0];
                 const isActualOwner = (profileId && team.leader?.id === profileId) || team.leader?.name === currentUserFullName;
-                const joined = joinedTeams.has(team.name);
+                const joined = joinedTeams.has(team.id || "");
                 const blockedByCap = atApplicationCap && !joined;
                 const disabled = joined || blockedByCap || isActualOwner;
 
@@ -567,7 +567,7 @@ function OpportunitySidePanelBody({
                         alert("En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
                         return;
                       }
-                      !disabled && onJoinTeam(team.name);
+                      !disabled && onJoinTeam(team.id || "");
                     }}
                     disabled={disabled}
                     className={`px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all ${
@@ -608,14 +608,14 @@ function OpportunitySidePanelBody({
             <div className="space-y-4">
             {localTeams.map((team) => {
               const isActualOwner = (profileId && team.leader?.id === profileId) || team.leader?.name === currentUserFullName;
-              const joined = joinedTeams.has(team.id);
+              const joined = joinedTeams.has(team.id || "");
               const blockedByCap = atApplicationCap && !joined;
               const missingSlots = team.membersMax && team.membersCurrent !== undefined ? team.membersMax - team.membersCurrent : null;
               const isFull = team.full || (missingSlots !== null && missingSlots <= 0);
               const disabled = isFull || joined || blockedByCap || isActualOwner;
 
               return (
-                <div key={team.name} className="bg-white dark:bg-[#0c1118] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                <div key={team.id || team.name} className="bg-white dark:bg-[#0c1118] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
                   <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                     <div>
                       <h5 className="text-lg font-bold text-[var(--text-navy)] dark:text-slate-100 flex items-center gap-2 mb-1">
@@ -641,7 +641,7 @@ function OpportunitySidePanelBody({
                               alert("En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
                               return;
                             }
-                            !disabled && onJoinTeam(team.id);
+                            !disabled && onJoinTeam(team.id || "");
                           }}
                           disabled={isFull || joined || isActualOwner}
                           className={`hidden sm:block shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
@@ -674,7 +674,7 @@ function OpportunitySidePanelBody({
                           alert("En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
                           return;
                         }
-                        !disabled && onJoinTeam(team.id);
+                        !disabled && onJoinTeam(team.id || "");
                       }}
                       disabled={isFull || joined || isActualOwner}
                       className={`shrink-0 rounded-lg px-4 py-1.5 text-xs font-semibold shadow-sm transition-all ${
