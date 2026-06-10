@@ -73,6 +73,13 @@ function inferCategory(opportunityTitle: string, opportunityTags: string[]) {
 }
 
 function parseTurkishDeadline(deadline: string) {
+  if (!deadline) return null;
+  // If it's already a valid date string (e.g. ISO string), use it directly
+  const d = new Date(deadline);
+  if (!isNaN(d.getTime())) {
+    return d;
+  }
+
   const monthMap: Record<string, number> = {
     ocak: 0,
     subat: 1,
@@ -99,6 +106,7 @@ function parseTurkishDeadline(deadline: string) {
   const month = monthMap[normalizeText(parts[1] ?? "")];
   if (!Number.isFinite(day) || month === undefined) return null;
   const currentYear = new Date().getFullYear();
+  return new Date(currentYear, month, day, 23, 59, 59);
 }
 
 export function formatDisplayDate(dateStr: string) {
