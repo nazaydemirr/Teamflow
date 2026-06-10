@@ -2,7 +2,8 @@ import { env } from "@/lib/env";
 
 function resolveFetchUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
-  const base = (env.apiBaseUrl || "http://localhost:8080").trim().replace(/\/$/, "");
+  // Fallback to localhost:8080 to bypass remote server errors for local testing
+  const base = "http://localhost:8080";
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

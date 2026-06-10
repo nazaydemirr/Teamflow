@@ -82,13 +82,7 @@ export async function handleSocialLogin(provider: "google" | "github" | "linkedi
     
     router.replace("/feed");
   } catch (err: any) {
-    console.warn("Sosyal giriş hatası (Backend sunucusu kapalı olabilir):", err.message || err);
-    // Fallback if backend doesn't support social-login yet (e.g., pending deployment)
-    await simulateDelay(1000);
-    localStorage.setItem("teamflow_demo_auth", "false");
-    localStorage.removeItem("teamflow_demo_profile");
-    localStorage.setItem("teamflow_profile_id", `${provider}-fallback`);
-    localStorage.setItem("teamflow_display_name", `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`);
-    router.replace("/feed");
+    console.warn("Sosyal giriş hatası (Backend sunucusu kapalı olabilir veya CORS hatası):", err.message || err);
+    throw err; // Hata fırlatarak login sayfasında UI'a yansımasını sağla
   }
 }

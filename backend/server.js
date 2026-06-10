@@ -24,13 +24,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Genel API Rate Limiting (Brute force koruması)
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 dakika
-  max: 100, // IP başına 15 dakikada en fazla 100 istek
-  message: { message: "Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin." }
-});
-app.use(apiLimiter);
+app.set("trust proxy", 1); // Reverse proxy arkasındaysa gerçek IP'yi almak için
 
 app.use(
   cors({
@@ -39,6 +33,14 @@ app.use(
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS", "PUT"],
   })
 );
+
+// Genel API Rate Limiting (Brute force koruması)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 dakika
+  max: 100, // IP başına 15 dakikada en fazla 100 istek
+  message: { message: "Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin." }
+});
+app.use(apiLimiter);
 app.use(express.json());
 
 const port = Number(process.env.PORT || 8080);
