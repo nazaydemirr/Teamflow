@@ -331,25 +331,38 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                       </button>
                       <button 
                         onClick={async () => {
-                          if (window.confirm("Ekibi tamamen kapatmak istediğinize emin misiniz? Bu işlem geri alınamaz ve ekipteki tüm üyeler ekipten çıkarılacaktır.")) {
+                          const isAuthor = opp.author === userFullName;
+                          const confirmMsg = isAuthor 
+                            ? "Bu ilanı ve (varsa) bağlı tüm takımları tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+                            : "Ekibi tamamen kapatmak istediğinize emin misiniz? Bu işlem geri alınamaz ve ekipteki tüm üyeler ekipten çıkarılacaktır.";
+
+                          if (window.confirm(confirmMsg)) {
                             try {
                               const { apiDelete } = await import("@/lib/api");
-                              const myTeam = opp.teams?.find(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName) || opp.teams?.[0];
-                              if (myTeam?.id) {
-                                await apiDelete(`/teams/${myTeam.id}`);
+                              if (isAuthor) {
+                                // Yazar fırsatı tamamen silmeli (böylece veritabanında olmayan ghost takımlardan da kurtulur)
+                                await apiDelete(`/opportunities/${opp.id}`);
                               } else {
-                                alert("Kapatılacak takım bulunamadı.");
+                                // Sadece takımın lideriyse, takımı silmeli
+                                const myTeam = opp.teams?.find(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName) || opp.teams?.[0];
+                                if (myTeam?.id) {
+                                  await apiDelete(`/teams/${myTeam.id}`);
+                                } else {
+                                  alert("Kapatılacak takım bulunamadı.");
+                                  return;
+                                }
                               }
+                              
                               refresh();
                               setTick(t => t + 1);
                             } catch (e: any) {
-                              alert("Takım kapatılırken hata oluştu: " + e.message);
+                              alert("Kapatılırken hata oluştu: " + e.message);
                             }
                           }
                         }}
                         className="rounded-lg bg-red-50 text-red-700 px-4 py-2 text-sm font-bold shadow-sm border border-red-200 hover:bg-red-100 transition-colors dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40 dark:hover:bg-red-900/40"
                       >
-                        Ekibi Kapat
+                        {opp.author === userFullName ? "Projeyi Kapat" : "Ekibi Kapat"}
                       </button>
                     </>
                   ) : (
