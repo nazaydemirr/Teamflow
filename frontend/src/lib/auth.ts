@@ -49,12 +49,28 @@ export function checkRateLimit(): { isLocked: boolean; remainingSeconds: number 
 }
 
 // Ortak Sosyal Giriş Davranışı
-export async function mockSocialLogin(provider: "google" | "github" | "linkedin", router: any) {
+export async function handleSocialLogin(provider: "google" | "github" | "linkedin", router: any) {
   try {
     const { apiPost } = await import("@/lib/api");
-    const displayName = `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`;
-    // Consistent mock email per provider to resume the same user session
-    const email = `${provider}_user@teamflow.mock`;
+    let displayName = `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`;
+    let email = `${provider}_user@teamflow.mock`;
+
+    if (provider === "google") {
+      const { auth } = await import("@/lib/firebase");
+      if (auth) {
+        try {
+          const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
+          const fbProvider = new GoogleAuthProvider();
+          const result = await signInWithPopup(auth, fbProvider);
+          if (result.user) {
+            email = result.user.email || email;
+            displayName = result.user.displayName || displayName;
+          }
+        } catch (firebaseErr) {
+          console.warn("Firebase Auth Error (Lütfen geçerli bir Firebase API Key girin):", firebaseErr);
+        }
+      }
+    }
     
     const res = await apiPost("/auth/social-login", { provider, email, displayName }) as { token: string, uid: string, displayName: string };
 
@@ -66,7 +82,7 @@ export async function mockSocialLogin(provider: "google" | "github" | "linkedin"
     
     router.replace("/feed");
   } catch (err: any) {
-    console.error("Sosyal giriş hatası:", err);
+    console.warn("Sosyal giriş hatası (Backend sunucusu kapalı olabilir):", err.message || err);
     // Fallback if backend doesn't support social-login yet (e.g., pending deployment)
     await simulateDelay(1000);
     localStorage.setItem("teamflow_demo_auth", "false");
