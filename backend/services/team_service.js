@@ -37,6 +37,11 @@ async function createTeam(uid, body) {
     throw new Error("LIMIT_REACHED:Şu anda en fazla 3 takımın lideri olabilirsiniz. Yeni bir takım oluşturamazsınız.");
   }
 
+  const { rows: existingOppTeams } = await pool.query("SELECT id FROM teams WHERE opp_id = $1 AND leader_id = $2", [parsed.data.opp_id, uid]);
+  if (existingOppTeams.length > 0) {
+    throw new Error("LIMIT_REACHED:Bu ilan için zaten bir takım oluşturdunuz. Her ilan için sadece bir takım kurabilirsiniz.");
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
