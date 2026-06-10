@@ -68,6 +68,8 @@ async function getOpportunities(uid, limit = 20, cursor = 0) {
     for (const oppId in teamsMap) {
       const team = teamsMap[oppId].find(tm => tm.id === m.team_id);
       if (team) {
+        if (team.leader.id === m.user_id) continue; // Lideri üyeler listesine ekleme (çift görünmesin)
+        
         const initials = (m.display_name || "U").split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
         team.members.push({
           id: m.user_id,
