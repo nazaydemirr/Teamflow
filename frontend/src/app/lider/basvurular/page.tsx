@@ -168,14 +168,15 @@ export default function LeaderApplicationsPage() {
         const { apiGet } = await import("@/lib/api");
         const data = await apiGet("/applications?as_leader=true") as any;
         if (data && data.items) {
-          setLeaderApps(data.items.map((item: any) => ({
+          const pendingItems = data.items.filter((item: any) => item.status === "pending");
+          setLeaderApps(pendingItems.map((item: any) => ({
             id: item.id,
             oppId: item.opp_id,
             oppTitle: item.oppTitle || `İlan ${item.opp_id?.substring(0, 6) || ""}`,
             teamName: item.team_name || item.team_id,
             applicantLabel: item.applicant_label || "",
             applicantSkills: item.applicant_skills || [],
-            status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : "Reddedildi",
+            status: "Beklemede",
             appliedAt: item.createdAt || new Date().toISOString(),
           })));
         }
