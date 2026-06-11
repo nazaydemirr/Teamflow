@@ -28,6 +28,7 @@ async function getApplications(uid, teamId, asLeader = false) {
     const { rows } = await pool.query(`
       SELECT 
         a.*, 
+        a.created_at as "createdAt",
         o.title as "oppTitle",
         t.name as team_name,
         u.display_name as applicant_label, 
@@ -48,17 +49,17 @@ async function getApplications(uid, teamId, asLeader = false) {
       JOIN opportunities o ON a.opp_id = o.id
       LEFT JOIN teams t ON a.team_id = t.id
       JOIN users u ON a.applicant_id = u.id
-      WHERE (t.leader_id = $1 OR o.author_id = $1) AND a.status = 'pending'
+      WHERE a.leader_id = $1 AND a.status IN ('pending', 'approved', 'rejected')
     `, [uid]);
     return { items: rows };
   } else {
     const { rows } = await pool.query(`
-      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills,
+      SELECT a.*, a.created_at as "createdAt", u.display_name as applicant_label, u.skills as applicant_skills,
              o.title as "oppTitle", o.description as description, l.display_name as leader
       FROM applications a
       JOIN users u ON a.applicant_id = u.id
       LEFT JOIN opportunities o ON a.opp_id = o.id
-      LEFT JOIN users l ON o.author_id = l.id
+      LEFT JOIN users l ON a.leader_id = l.id
       WHERE a.applicant_id = $1
     `, [uid]);
     return { items: rows };
@@ -95,22 +96,18 @@ async function createApplication(uid, body) {
   try {
     await client.query("BEGIN");
     
+    const { rows: teamRows } = await client.query("SELECT leader_id, name, opp_id FROM teams WHERE id = $1", [parsed.data.team_id]);
+    const { rows: userRows } = await client.query("SELECT email, display_name FROM users WHERE id = $1", [uid]);
+    
+    if (teamRows.length === 0 || userRows.length === 0) {
+      throw new Error("NOT_FOUND:Takım veya kullanıcı bulunamadı");
+    }
+
     const { rows } = await client.query(
-      "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'pending') RETURNING id",
-      [parsed.data.opp_id, parsed.data.team_id, uid]
+      "INSERT INTO applications (opp_id, team_id, applicant_id, status, leader_id, applicant_email) VALUES ($1, $2, $3, 'pending', $4, $5) RETURNING id",
+      [parsed.data.opp_id, parsed.data.team_id, uid, teamRows[0].leader_id, userRows[0].email]
     );
     const appId = rows[0].id;
-    
-    // Get team leader and applicant details for notification
-    const { rows: teamRows } = await client.query("SELECT leader_id, name FROM teams WHERE id = $1", [parsed.data.team_id]);
-    const { rows: userRows } = await client.query("SELECT display_name FROM users WHERE id = $1", [uid]);
-    
-    if (teamRows.length > 0 && userRows.length > 0) {
-      await client.query(
-        "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)",
-        [teamRows[0].leader_id, parsed.data.team_id, `${userRows[0].display_name} kullanıcısı ekibinize (${teamRows[0].name}) başvurdu.`]
-      );
-    }
     
     await client.query("COMMIT");
     return { id: appId, opp_id: parsed.data.opp_id, team_id: parsed.data.team_id, status: "pending" };
