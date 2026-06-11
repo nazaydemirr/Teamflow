@@ -129,24 +129,32 @@ router.post("/invite", authMiddleware, async (req, res) => {
 - Sadece tek bir mesaj metni üret.
 - Mesajın başına veya sonuna açıklama, not, tavsiye veya giriş cümlesi (örn: "İşte mesajınız:") ekleme. Sadece gönderilecek mesajın kendisini ver.`;
 
-    const response = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "google/gemma-4-31b-it:free",
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
+    let messageText = `Merhaba! ${teamName} takımı olarak ${eksik_yetenek} yeteneğine sahip birine ihtiyacımız var. Aramıza katılıp birlikte harika işler başarmaya ne dersin?`;
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter API Error: ${response.statusText}`);
+    try {
+      const response = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "google/gemma-2-9b-it:free",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.choices && data.choices.length > 0) {
+          messageText = data.choices[0].message.content.trim();
+        }
+      } else {
+        console.warn(`OpenRouter API error: ${response.status} ${response.statusText}`);
+      }
+    } catch (apiError) {
+      console.error("OpenRouter API request failed:", apiError);
     }
-
-    const data = await response.json();
-    const messageText = data.choices[0].message.content;
 
     const result = await pool.query(
       `INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3) RETURNING id`,
