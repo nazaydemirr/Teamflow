@@ -1,3 +1,7 @@
+import { auth } from "@/lib/firebase";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { apiPost } from "@/lib/api";
+
 export async function simulateDelay(ms: number = 1000) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -51,15 +55,12 @@ export function checkRateLimit(): { isLocked: boolean; remainingSeconds: number 
 // Ortak Sosyal Giriş Davranışı
 export async function handleSocialLogin(provider: "google" | "github" | "linkedin", router: any) {
   try {
-    const { apiPost } = await import("@/lib/api");
     let displayName = `${provider === "google" ? "Google" : provider === "github" ? "GitHub" : "LinkedIn"} User`;
     let email = `${provider}_user@teamflow.mock`;
 
     if (provider === "google") {
-      const { auth } = await import("@/lib/firebase");
       if (auth) {
         try {
-          const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
           const fbProvider = new GoogleAuthProvider();
           fbProvider.setCustomParameters({ prompt: 'select_account' }); // Always prompt for account selection
           const result = await signInWithPopup(auth, fbProvider);

@@ -34,6 +34,9 @@ app.use(
   })
 );
 
+app.get("/health", (req, res) => res.json({ ok: true }));
+app.get("/", (req, res) => res.json({ message: "TeamFlow API is running" }));
+
 // Genel API Rate Limiting (Brute force koruması)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 dakika
@@ -62,8 +65,6 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.get("/health", (req, res) => res.json({ ok: true }));
-
 // Mount routes
 app.use("/auth", authRoutes);
 app.use("/me", profileRoutes);
@@ -79,8 +80,8 @@ app.use((req, res) => {
   sendError(res, 404, "NOT_FOUND", "Route not found", { method: req.method, path: req.path });
 });
 
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`API listening on http://0.0.0.0:${port}`);
 });
 
 // Trigger nodemon restart
