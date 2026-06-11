@@ -91,12 +91,35 @@ async function createApplication(uid, body) {
     throw new Error("ALREADY_MEMBER:Zaten bu ekibin üyesisiniz.");
   }
   
-  const { rows } = await pool.query(
-    "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'pending') RETURNING id",
-    [parsed.data.opp_id, parsed.data.team_id, uid]
-  );
-  
-  return { id: rows[0].id, opp_id: parsed.data.opp_id, team_id: parsed.data.team_id, status: "pending" };
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    const { rows } = await client.query(
+      "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'pending') RETURNING id",
+      [parsed.data.opp_id, parsed.data.team_id, uid]
+    );
+    const appId = rows[0].id;
+    
+    // Get team leader and applicant details for notification
+    const { rows: teamRows } = await client.query("SELECT leader_id, name FROM teams WHERE id = $1", [parsed.data.team_id]);
+    const { rows: userRows } = await client.query("SELECT display_name FROM users WHERE id = $1", [uid]);
+    
+    if (teamRows.length > 0 && userRows.length > 0) {
+      await client.query(
+        "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)",
+        [teamRows[0].leader_id, parsed.data.team_id, `${userRows[0].display_name} kullanıcısı ekibinize (${teamRows[0].name}) başvurdu.`]
+      );
+    }
+    
+    await client.query("COMMIT");
+    return { id: appId, opp_id: parsed.data.opp_id, team_id: parsed.data.team_id, status: "pending" };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function handleDecision(uid, applicationId, body) {

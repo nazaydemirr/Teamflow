@@ -102,7 +102,7 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-router.post("/:applicationId/decision", async (req, res) => {
+router.post("/:applicationId/decision", authMiddleware, async (req, res) => {
   try {
     const result = await applicationService.handleDecision(req.user.uid, req.params.applicationId, req.body);
     res.json({ ok: true, ...result });
