@@ -555,9 +555,10 @@ function OpportunitySidePanelBody({
               {(() => {
                 const team = localTeams[0];
                 const isActualOwner = (profileId && team.leader?.id === profileId) || team.leader?.name === currentUserFullName;
+                const isMember = team.members?.some(m => (profileId && m.id === profileId) || m.name === currentUserFullName);
                 const joined = joinedTeams.has(team.id || "");
-                const blockedByCap = atApplicationCap && !joined;
-                const disabled = joined || blockedByCap || isActualOwner;
+                const blockedByCap = atApplicationCap && !joined && !isMember;
+                const disabled = joined || isMember || blockedByCap || isActualOwner;
 
                 return (
                   <button
@@ -573,14 +574,14 @@ function OpportunitySidePanelBody({
                     className={`px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all ${
                       isActualOwner
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 cursor-not-allowed"
-                        : joined
+                        : (joined || isMember)
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 cursor-not-allowed"
                         : disabled
                         ? "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 cursor-not-allowed"
                         : "bg-[var(--flow-blue)] text-white hover:brightness-110 active:scale-95"
                     }`}
                   >
-                    {isActualOwner ? "Proje Sahibisin" : joined ? "Başvuruldu" : blockedByCap ? "Limit Doldu" : "Projeye Başvur"}
+                    {isActualOwner ? "Proje Sahibisin" : isMember ? "Zaten Üyesin" : joined ? "Başvuruldu" : blockedByCap ? "Limit Doldu" : "Projeye Başvur"}
                   </button>
                 );
               })()}
@@ -608,11 +609,12 @@ function OpportunitySidePanelBody({
             <div className="space-y-4">
             {localTeams.map((team) => {
               const isActualOwner = (profileId && team.leader?.id === profileId) || team.leader?.name === currentUserFullName;
+              const isMember = team.members?.some(m => (profileId && m.id === profileId) || m.name === currentUserFullName);
               const joined = joinedTeams.has(team.id || "");
-              const blockedByCap = atApplicationCap && !joined;
+              const blockedByCap = atApplicationCap && !joined && !isMember;
               const missingSlots = team.membersMax && team.membersCurrent !== undefined ? team.membersMax - team.membersCurrent : null;
               const isFull = team.full || (missingSlots !== null && missingSlots <= 0);
-              const disabled = isFull || joined || blockedByCap || isActualOwner;
+              const disabled = isFull || joined || isMember || blockedByCap || isActualOwner;
 
               return (
                 <div key={team.id || team.name} className="bg-white dark:bg-[#0c1118] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
@@ -647,14 +649,14 @@ function OpportunitySidePanelBody({
                           className={`hidden sm:block shrink-0 px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
                             isActualOwner
                               ? "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 cursor-not-allowed"
-                              : joined
+                              : (joined || isMember)
                               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 cursor-not-allowed"
                               : disabled
                               ? "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500 cursor-not-allowed"
                               : "bg-[var(--flow-blue)] text-white hover:brightness-110 active:scale-95"
                           }`}
                         >
-                          {isActualOwner ? (isBitirme ? "Proje Sahibisin" : "Kaptansın") : joined ? "Başvuruldu" : isFull ? "Dolu" : blockedByCap ? "Limit Doldu" : (isBitirme ? "Projeye Başvur" : "Takıma Katıl")}
+                          {isActualOwner ? (isBitirme ? "Proje Sahibisin" : "Kaptansın") : isMember ? "Zaten Üyesin" : joined ? "Başvuruldu" : isFull ? "Dolu" : blockedByCap ? "Limit Doldu" : (isBitirme ? "Projeye Başvur" : "Takıma Katıl")}
                         </button>
                       </div>
                     </div>
