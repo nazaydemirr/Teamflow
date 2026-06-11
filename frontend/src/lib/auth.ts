@@ -70,7 +70,7 @@ export async function handleSocialLogin(provider: "google" | "github" | "linkedi
           }
         } catch (firebaseErr: any) {
           console.error("Firebase Auth Hatası:", firebaseErr);
-          throw new Error("Google ile giriş penceresi açılamadı veya iptal edildi.");
+          throw new Error(`Google Hatası: ${firebaseErr.code || ""} ${firebaseErr.message || "Bilinmiyor"}`);
         }
       } else {
          throw new Error("Firebase yapılandırması eksik.");
