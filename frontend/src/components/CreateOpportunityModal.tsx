@@ -120,15 +120,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
         };
         const oppRes = await apiPost("/opportunities", oppData) as { id: string };
         
-        // If Bitirme Projesi, automatically create a team for the owner
-        if (type === "bitirme-projesi") {
-          await apiPost("/teams", { 
-            opp_id: oppRes.id,
-            name: "Proje Ekibi",
-            description: "Bitirme Projesi Takımı"
-          });
-        }
-        
         setIsSubmitting(false);
         onSuccess();
       }
