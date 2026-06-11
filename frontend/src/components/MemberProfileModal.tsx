@@ -36,7 +36,6 @@ export function MemberProfileModal({ isOpen, onClose, member }: MemberProfileMod
   const skills = member.skills || [];
   const teamsCount = member.teamsCount ?? 0;
   const leaderCount = member.leaderCount ?? 0;
-  const projectsCount = member.projectsCount ?? 0;
   const university = member.university || "Bilinmiyor";
   const department = member.department || "Bilinmiyor";
 
@@ -93,7 +92,7 @@ export function MemberProfileModal({ isOpen, onClose, member }: MemberProfileMod
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 dark:bg-white/[0.02] p-3 rounded-xl border border-slate-100 dark:border-white/5 flex flex-col items-center justify-center">
               <p className="text-2xl font-bold text-[var(--flow-blue)] mb-1">{teamsCount}</p>
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider text-center">Yarışma<br/>Katılımı</p>
@@ -102,11 +101,8 @@ export function MemberProfileModal({ isOpen, onClose, member }: MemberProfileMod
               <p className="text-2xl font-bold text-amber-500 mb-1">{leaderCount}</p>
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider text-center">Liderlik<br/>Deneyimi</p>
             </div>
-            <div className="bg-slate-50 dark:bg-white/[0.02] p-3 rounded-xl border border-slate-100 dark:border-white/5 flex flex-col items-center justify-center">
-              <p className="text-2xl font-bold text-emerald-500 mb-1">{projectsCount}</p>
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider text-center">Tamamlanan<br/>Proje</p>
-            </div>
           </div>
+
 
           <div>
             <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
