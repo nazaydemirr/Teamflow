@@ -180,37 +180,7 @@ export function ProfilePreviewModal({ isOpen, onClose, applicant }: ProfilePrevi
               </div>
             </div>
             
-            <div className="pt-4 border-t border-slate-200 dark:border-white/10 mt-6 sticky bottom-0 bg-[var(--surface)] pb-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (messageState !== "idle") return;
-                  setMessageState("sending");
-                  setTimeout(() => setMessageState("sent"), 800);
-                }}
-                disabled={messageState !== "idle"}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md ${
-                  messageState === "sent"
-                    ? "bg-emerald-500 text-white shadow-emerald-500/20"
-                    : messageState === "sending"
-                    ? "bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-slate-400 shadow-none cursor-wait"
-                    : "bg-[var(--flow-blue)] text-white hover:brightness-110 active:scale-95 shadow-blue-500/20"
-                }`}
-              >
-                {messageState === "sent" ? (
-                  <>
-                    <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Mesaj Gönderildi
-                  </>
-                ) : messageState === "sending" ? (
-                  "Gönderiliyor..."
-                ) : (
-                  "Mesaj Gönder"
-                )}
-              </button>
-            </div>
+
           </div>
         </div>
 
