@@ -36,16 +36,6 @@ export function SiteHeader({
 
           <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
             <Link
-              href="/feed"
-              className={`transition-colors duration-[var(--duration)] ${
-                activeTab === "feed"
-                  ? "border-b-2 border-[var(--flow-blue)] pb-1 text-[var(--text-navy)] dark:text-slate-100"
-                  : "text-[var(--text-slate)] hover:text-[var(--text-navy)] dark:text-slate-300 dark:hover:text-slate-100"
-              }`}
-            >
-              Akış
-            </Link>
-            <Link
               href="/"
               className={`transition-colors duration-[var(--duration)] ${
                 activeTab === "landing"
@@ -54,6 +44,16 @@ export function SiteHeader({
               }`}
             >
               Ana Sayfa
+            </Link>
+            <Link
+              href="/feed"
+              className={`transition-colors duration-[var(--duration)] ${
+                activeTab === "feed"
+                  ? "border-b-2 border-[var(--flow-blue)] pb-1 text-[var(--text-navy)] dark:text-slate-100"
+                  : "text-[var(--text-slate)] hover:text-[var(--text-navy)] dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+            >
+              Akış
             </Link>
             <Link
               href="/profil"
