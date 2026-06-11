@@ -1,4 +1,5 @@
 const { pool } = require("../db");
+const { getUserStats } = require("./user_stats_service");
 const { z } = require("zod");
 
 const oppSchema = z.object({
@@ -27,27 +28,48 @@ async function getOpportunities(uid, limit = 20, cursor = 0) {
   const { rows: teamRows } = await pool.query(`
     SELECT t.id, t.opp_id, t.name, t.description, t.roles_needed, t.technologies, t.level, t.communication, 
            t.is_full as full, t.members_max as "membersMax", t.members_current as "membersCurrent", t.leader_id,
-           u.display_name as leader_name, u.skills as leader_skills
+           u.display_name as leader_name, u.skills as leader_skills,
+           u.university as leader_university, u.department as leader_department,
+           u.github_url as leader_github, u.linkedin_url as leader_linkedin
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
   `);
 
   const { rows: memberRows } = await pool.query(`
-    SELECT tm.team_id, u.id as user_id, u.display_name, u.skills
+    SELECT tm.team_id, u.id as user_id, u.display_name, u.skills,
+           u.university as member_university, u.department as member_department,
+           u.github_url as member_github, u.linkedin_url as member_linkedin
     FROM team_members tm
     JOIN users u ON tm.user_id = u.id
   `);
+
+  const uniqueUserIds = new Set();
+  for (const t of teamRows) if(t.leader_id) uniqueUserIds.add(t.leader_id);
+  for (const m of memberRows) if(m.user_id) uniqueUserIds.add(m.user_id);
+  
+  const statsMap = {};
+  await Promise.all(Array.from(uniqueUserIds).map(async (uid) => {
+    statsMap[uid] = await getUserStats(uid);
+  }));
 
   const teamsMap = {};
   for (const t of teamRows) {
     if (!teamsMap[t.opp_id]) teamsMap[t.opp_id] = [];
     const leaderInitials = (t.leader_name || "L").split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+    const lStats = statsMap[t.leader_id] || {};
     const leader = {
       id: t.leader_id,
       name: t.leader_name || "Lider",
       initials: leaderInitials,
       role: "Lider",
-      skills: t.leader_skills || []
+      skills: t.leader_skills || [],
+      university: t.leader_university,
+      department: t.leader_department,
+      github: t.leader_github,
+      linkedin: t.leader_linkedin,
+      teamsCount: lStats.statsActiveTeams || 0,
+      leaderCount: lStats.statsActiveTeamsLed || 0,
+      projectsCount: lStats.statsCompletedProjects || 0
     };
     teamsMap[t.opp_id].push({
       id: t.id,
@@ -73,12 +95,20 @@ async function getOpportunities(uid, limit = 20, cursor = 0) {
         if (team.leader.id === m.user_id) continue; // Lideri üyeler listesine ekleme (çift görünmesin)
         
         const initials = (m.display_name || "U").split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+        const mStats = statsMap[m.user_id] || {};
         team.members.push({
           id: m.user_id,
           name: m.display_name,
           initials,
           role: "Üye",
-          skills: m.skills || []
+          skills: m.skills || [],
+          university: m.member_university,
+          department: m.member_department,
+          github: m.member_github,
+          linkedin: m.member_linkedin,
+          teamsCount: mStats.statsActiveTeams || 0,
+          leaderCount: mStats.statsActiveTeamsLed || 0,
+          projectsCount: mStats.statsCompletedProjects || 0
         });
       }
     }

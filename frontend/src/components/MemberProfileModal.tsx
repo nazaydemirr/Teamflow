@@ -33,11 +33,10 @@ export function MemberProfileModal({ isOpen, onClose, member }: MemberProfileMod
 
   if (!isOpen || !mounted || !member) return null;
 
-  // Use mock values if none provided
-  const skills = member.skills || ["HTML", "CSS", "JavaScript"];
-  const teamsCount = member.teamsCount ?? Math.floor(Math.random() * 5) + 1;
-  const leaderCount = member.leaderCount ?? Math.floor(Math.random() * 3);
-  const projectsCount = member.projectsCount ?? Math.floor(Math.random() * 8) + 2;
+  const skills = member.skills || [];
+  const teamsCount = member.teamsCount ?? 0;
+  const leaderCount = member.leaderCount ?? 0;
+  const projectsCount = member.projectsCount ?? 0;
   const university = member.university || "Bilinmiyor";
   const department = member.department || "Bilinmiyor";
 

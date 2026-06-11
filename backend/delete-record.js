@@ -1,14 +1,22 @@
-const { pool } = require("./db");
+require('dotenv').config();
+const { pool } = require('./db');
 
-async function run() {
+async function deleteRecord() {
   try {
-    const { rowCount } = await pool.query("DELETE FROM opportunities WHERE id = '5471f324-1634-4d59-8ec2-75ceb4496b62'");
-    console.log(`Silinen kayit sayisi: ${rowCount}`);
-  } catch (err) {
-    console.error(err);
+    const id = '07a1cc66-2f98-4bf7-bf7d-a32ea38224de';
+    
+    // Check if it's there
+    const { rows: before } = await pool.query('SELECT * FROM applications WHERE id = $1', [id]);
+    console.log("Before delete:", before);
+
+    // Delete it
+    const res = await pool.query('DELETE FROM applications WHERE id = $1', [id]);
+    console.log(`Deleted ${res.rowCount} row(s).`);
+
+  } catch(e) {
+    console.error(e);
   } finally {
     pool.end();
   }
 }
-
-run();
+deleteRecord();

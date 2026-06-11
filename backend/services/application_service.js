@@ -1,4 +1,5 @@
 const { pool } = require("../db");
+const { getUserStats } = require("./user_stats_service");
 const { z } = require("zod");
 
 const applicationSchema = z.object({
