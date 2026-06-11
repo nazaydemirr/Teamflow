@@ -281,6 +281,14 @@ export default function ProfilePage() {
 
 
 
+  useEffect(() => {
+    if (!loading && (user || isDemoSession) && !errorText) {
+      if (profile.skillList.length === 0) {
+        router.replace("/onboarding?return=/profil");
+      }
+    }
+  }, [loading, user, isDemoSession, errorText, profile.skillList, router]);
+
   const totalApplications = 3;
   const activeApplications = activeCount;
 

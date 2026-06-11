@@ -834,7 +834,14 @@ function FeedPageInner() {
     [techState],
   );
 
-
+  useEffect(() => {
+    if (!skillsHydrated) return;
+    if (skills.length === 0) {
+      const qs = searchParams.toString();
+      const ret = qs ? `/feed?${qs}` : "/feed";
+      router.replace(`/onboarding?return=${encodeURIComponent(ret)}`);
+    }
+  }, [skills, skillsHydrated, router, searchParams]);
 
   const filteredOpportunities = useMemo(() => {
     const now = new Date();

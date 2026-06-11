@@ -112,9 +112,6 @@ export default function OnboardingPage() {
         </Link>
         
         <div className="flex items-center gap-6">
-          <button onClick={skipToFeed} className="text-sm font-semibold text-slate-500 hover:text-[var(--text-navy)] dark:hover:text-slate-300 transition-colors">
-            Sonra Tamamla
-          </button>
           <ThemeToggle />
         </div>
       </header>
