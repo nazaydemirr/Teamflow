@@ -47,6 +47,8 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     if (leaderCount >= 3) {
       alert("Maksimum ekip liderliği limitine ulaştınız. Bir kullanıcı aynı anda en fazla 3 ekibin lideri olabilir. Bu nedenle yeni bir ekip oluşturamazsınız.");
       return;
@@ -125,7 +127,11 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
         
         // If Bitirme Projesi, automatically create a team for the owner
         if (type === "bitirme-projesi") {
-          await apiPost("/teams", { opp_id: oppRes.id });
+          await apiPost("/teams", { 
+            opp_id: oppRes.id,
+            name: "Proje Ekibi",
+            description: "Bitirme Projesi Takımı"
+          });
         }
         
         setIsSubmitting(false);
