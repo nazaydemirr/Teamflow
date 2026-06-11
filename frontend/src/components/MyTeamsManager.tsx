@@ -253,8 +253,8 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
             teamName: opp.teams[0]?.name || "Kurucu",
             isLeaderRole: true
           },
-          ...(opp.teams[0]?.members || []).map(m => ({ 
-            id: m.id, 
+          ...(opp.teams[0]?.members || []).map((m, idx) => ({ 
+            id: m.id || `demo-member-${idx}`, 
             applicantLabel: m.name, 
             teamName: opp.teams[0]?.name || "Takım", 
             isLeaderRole: false 
@@ -645,7 +645,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                                 <button
                                   onClick={async () => {
                                     if (window.confirm("Bu üyeyi ekipten çıkarmak istediğinize emin misiniz?")) {
-                                      await removeTeamMemberById(myTeam.id, m.id);
+                                      await removeTeamMemberById(myTeam.id!, m.id);
                                       refresh();
                                     }
                                   }}
