@@ -35,9 +35,12 @@ async function getApplications(uid, teamId, asLeader = false) {
     return { items: rows };
   } else {
     const { rows } = await pool.query(`
-      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills 
+      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills,
+             o.title as "oppTitle", o.description as description, l.display_name as leader
       FROM applications a
       JOIN users u ON a.applicant_id = u.id
+      LEFT JOIN opportunities o ON a.opp_id = o.id
+      LEFT JOIN users l ON o.author_id = l.id
       WHERE a.applicant_id = $1
     `, [uid]);
     return { items: rows };
