@@ -21,6 +21,7 @@ async function getOpportunities(uid, limit = 20, cursor = 0) {
            u.display_name as author_name
     FROM opportunities o
     LEFT JOIN users u ON o.author_id = u.id
+    WHERE o.deadline > NOW()
   `);
 
   const { rows: teamRows } = await pool.query(`

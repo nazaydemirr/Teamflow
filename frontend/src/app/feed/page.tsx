@@ -852,8 +852,8 @@ function FeedPageInner() {
 
     return opportunities.filter((opportunity) => {
       const oppDeadline = parseTurkishDeadline(opportunity.deadline);
-      // Deadline geçmişse akışta gösterme (bugün bitenler görünmeye devam etsin diye now'ın saatini sıfırladık)
-      if (oppDeadline && oppDeadline.getTime() < now.getTime()) {
+      // Deadline geçmişse akışta gösterme (bugün bitenler ve geçmiş olanlar görünmemeli)
+      if (oppDeadline && oppDeadline.getTime() <= new Date().getTime()) {
         return false;
       }
 
@@ -904,12 +904,12 @@ function FeedPageInner() {
 
       if (!quickDateFilter) return true;
 
-      // Deadline yaklaşanlar: deadline üzerinden
+      // Deadline yaklaşanlar: deadline üzerinden (önümüzdeki 3 gün içinde)
       if (quickDateFilter === "upcoming-deadline") {
         const deadlineDate = parseTurkishDeadline(opportunity.deadline);
         if (!deadlineDate) return false;
-        const diffDays = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays >= 0 && diffDays <= 14;
+        const diffDays = Math.ceil((deadlineDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays > 0 && diffDays <= 3;
       }
 
       // Son 1 hafta ve Bu ay: createdAt üzerinden
