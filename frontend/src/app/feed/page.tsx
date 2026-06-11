@@ -946,6 +946,8 @@ function FeedPageInner() {
   }, [opportunities, selectedOppId]);
 
   const myApplications = useMemo(() => {
+    const isDemo = typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true";
+    if (!isDemo) return applications;
     return applications.filter(a => a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici" || a.applicantLabel === currentUserFullName);
   }, [applications, currentUserFullName]);
 
