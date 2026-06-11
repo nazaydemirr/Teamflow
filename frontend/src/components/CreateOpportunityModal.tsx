@@ -214,7 +214,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
                     className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"
                   />
                 </div>
-              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex justify-between">
