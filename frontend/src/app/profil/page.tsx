@@ -253,10 +253,10 @@ export default function ProfilePage() {
               id: item.id || "",
               oppId: item.oppId || "",
               title: item.oppTitle || "Basvuru",
-              leader: "-",
-              score: 0,
+              leader: item.leader || "-",
+              score: item.score || 0,
               status: safeStatus,
-              description: "Bu ilan için açıklama bulunamadı."
+              description: item.description || "Bu ilan için açıklama bulunamadı."
             };
           }),
           teams: rawTeams.map((item: unknown) => {
