@@ -160,48 +160,31 @@ export default function LeaderApplicationsPage() {
   const [selectedProfile, setSelectedProfile] = useState<StoredApplication | null>(null);
   const [messagingApp, setMessagingApp] = useState<StoredApplication | null>(null);
   const [messageText, setMessageText] = useState("");
-  const [userFullName, setUserFullName] = useState("");
-
   const [leaderApps, setLeaderApps] = useState<StoredApplication[]>([]);
 
   useEffect(() => {
-    const profileType = localStorage.getItem("teamflow_demo_profile") || "frontend";
-    if (profileType === "frontend") setUserFullName("Frontend Geliştirici (Demo)");
-    else if (profileType === "backend") setUserFullName("Backend Geliştirici (Demo)");
-    else if (profileType === "ai") setUserFullName("Yapay Zeka Uzmanı (Demo)");
-    else setUserFullName("Demo Kullanici");
-  }, []);
-
-  useEffect(() => {
     async function loadLeaderApps() {
-      const isDemo = localStorage.getItem("teamflow_demo_auth") === "true";
-      if (isDemo) {
-        if (!userFullName) return;
-        const myOppIds = new Set(getAllOpportunities().filter(o => o.author === userFullName).map(o => o.id));
-        setLeaderApps(applications.filter(a => myOppIds.has(a.oppId)));
-      } else {
-        try {
-          const { apiGet } = await import("@/lib/api");
-          const data = await apiGet("/applications?as_leader=true") as any;
-          if (data && data.items) {
-            setLeaderApps(data.items.map((item: any) => ({
-              id: item.id,
-              oppId: item.opp_id,
-              oppTitle: item.oppTitle || `İlan ${item.opp_id.substring(0, 6)}`,
-              teamName: item.team_name || item.team_id,
-              applicantLabel: item.applicant_label || "",
-              applicantSkills: item.applicant_skills || [],
-              status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : "Reddedildi",
-              appliedAt: item.createdAt || new Date().toISOString(),
-            })));
-          }
-        } catch (e) {
-          console.error(e);
+      try {
+        const { apiGet } = await import("@/lib/api");
+        const data = await apiGet("/applications?as_leader=true") as any;
+        if (data && data.items) {
+          setLeaderApps(data.items.map((item: any) => ({
+            id: item.id,
+            oppId: item.opp_id,
+            oppTitle: item.oppTitle || `İlan ${item.opp_id?.substring(0, 6) || ""}`,
+            teamName: item.team_name || item.team_id,
+            applicantLabel: item.applicant_label || "",
+            applicantSkills: item.applicant_skills || [],
+            status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : "Reddedildi",
+            appliedAt: item.createdAt || new Date().toISOString(),
+          })));
         }
+      } catch (e) {
+        console.error(e);
       }
     }
     loadLeaderApps();
-  }, [applications, userFullName]);
+  }, [applications]);
 
   async function act(row: StoredApplication, next: StoredApplication["status"]) {
     try {

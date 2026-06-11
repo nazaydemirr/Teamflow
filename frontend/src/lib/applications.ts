@@ -38,88 +38,7 @@ export function broadcastApplicationsUpdated() {
   window.dispatchEvent(new Event("teamflow-applications"));
 }
 
-function getStorageKey() {
-  return "teamflow_applications_shared_v1";
-}
 
-function getPrefilledApplications(): StoredApplication[] {
-  const baseApp = {
-    appliedAt: new Date().toISOString(),
-    applicantUniversity: "Boğaziçi Üniversitesi",
-    applicantDepartment: "Bilgisayar Mühendisliği",
-    applicantClassLevel: "3. Sınıf",
-    applicantBio: "Yazılım geliştirmeye ve yeni teknolojileri keşfetmeye tutkulu.",
-    applicantGithub: "https://github.com/demo",
-    applicantLinkedin: "https://linkedin.com/in/demo",
-    statsCompetitionsJoined: 5,
-    statsCompetitionsCompleted: 3,
-    statsCompetitionsLed: 2,
-    statsTeamsCreated: 2,
-    statsActiveTeams: 2,
-    statsActiveTeamsLed: 1,
-    statsActiveTeamsNames: ["Core", "AI Research"],
-    statsLedTeamsNames: ["Core"],
-    statsActiveApplications: 1,
-    statsPendingApplications: true
-  };
-
-  return [
-    { 
-      ...baseApp, 
-      id: "app_f1", 
-      oppId: "10", 
-      oppTitle: "IoT Akıllı Ev Platformu", 
-      teamName: "Backend Team", 
-      applicantLabel: "Frontend Geliştirici (Demo)", 
-      applicantSkills: ["React", "TypeScript"],
-      status: "Beklemede" 
-    },
-    { 
-      ...baseApp, 
-      id: "app_a1", 
-      oppId: "4", 
-      oppTitle: "Açık Kaynak Geliştirici Platformu", 
-      teamName: "Proje Ekibi", 
-      applicantLabel: "Yapay Zeka Uzmanı (Demo)", 
-      applicantSkills: ["Python", "PyTorch"],
-      status: "Beklemede" 
-    },
-    { 
-      ...baseApp, 
-      id: "app_b1", 
-      oppId: "1", 
-      oppTitle: "Finansal Veri Analizi", 
-      teamName: "Proje Ekibi", 
-      applicantLabel: "Backend Geliştirici (Demo)", 
-      applicantSkills: ["Node.js", "PostgreSQL"],
-      status: "Onaylandi" 
-    }
-  ];
-}
-
-function listDemoApplications(): StoredApplication[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(getStorageKey());
-    if (!raw) {
-      return getPrefilledApplications();
-    }
-    return JSON.parse(raw) as StoredApplication[];
-  } catch {
-    return [];
-  }
-}
-
-
-function persistDemoApplications(list: StoredApplication[]) {
-  localStorage.setItem(getStorageKey(), JSON.stringify(list));
-  broadcastApplicationsUpdated();
-}
-
-export async function fetchApplications(): Promise<StoredApplication[]> {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    return listDemoApplications();
-  }
   
   try {
     const data = await apiGet("/applications") as any;
@@ -165,10 +84,7 @@ export type NewApplicationInput = {
 };
 
 export async function addMemberById(teamId: string, userId: string) {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    alert("Demo modunda ID ile üye ekleme desteklenmemektedir.");
-    return null;
-  }
+  
 
   try {
     const data = await apiPost("/applications/add-member", { teamId, userId });
@@ -181,10 +97,7 @@ export async function addMemberById(teamId: string, userId: string) {
 }
 
 export async function removeTeamMemberById(teamId: string, userId: string) {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    alert("Demo modunda ekipten üye çıkarma desteklenmemektedir.");
-    return;
-  }
+  
 
   try {
     await apiPost("/applications/remove-member", { teamId, userId });
@@ -196,19 +109,7 @@ export async function removeTeamMemberById(teamId: string, userId: string) {
 }
 
 export async function addApplication(entry: NewApplicationInput): Promise<StoredApplication | null> {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    const activeApplications = listDemoApplications().filter(a => (a.status === "Beklemede" || a.status === "Onaylandi") && a.applicantLabel === entry.applicantLabel).length;
-    if (activeApplications >= 3) return null;
-    
-    const row: StoredApplication = {
-      ...entry,
-      status: "Beklemede",
-      id: `app_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      appliedAt: new Date().toISOString(),
-    };
-    persistDemoApplications([...listDemoApplications(), row]);
-    return row;
-  }
+  
 
   try {
     const data = await apiPost("/applications", {
@@ -235,11 +136,7 @@ export async function addApplication(entry: NewApplicationInput): Promise<Stored
 }
 
 export async function decideApplication(id: string, action: "approve" | "reject", message?: string) {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    const list = listDemoApplications().map((a) => (a.id === id ? { ...a, status: (action === "approve" ? "Onaylandi" : "Reddedildi") as ApplicationStatus } : a));
-    persistDemoApplications(list);
-    return;
-  }
+  
 
   try {
     await apiPost(`/applications/${id}/decision`, { action, message });
@@ -251,11 +148,7 @@ export async function decideApplication(id: string, action: "approve" | "reject"
 }
 
 export async function deleteApplication(id: string) {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    const list = listDemoApplications().filter((a) => a.id !== id);
-    persistDemoApplications(list);
-    return;
-  }
+  
 
   try {
     await apiDelete(`/applications/${id}`);
@@ -267,11 +160,7 @@ export async function deleteApplication(id: string) {
 }
 
 export async function deleteApplicationsByOpp(oppId: string) {
-  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    const list = listDemoApplications().filter((a) => a.oppId !== oppId);
-    persistDemoApplications(list);
-    return;
-  }
+  
 }
 
 export async function tryBrowserNotify(title: string, body: string) {

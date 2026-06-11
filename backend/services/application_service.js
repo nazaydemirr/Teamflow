@@ -17,6 +17,7 @@ async function getApplications(uid, teamId, asLeader = false) {
     if (teamRows.length === 0) throw new Error("NOT_FOUND:Ekip bulunamadı");
     if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkiniz yok");
     
+    console.log(`[DEBUG] getApplications: fetching for teamId=${teamId}, status=pending`);
     const { rows } = await pool.query(`
       SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills 
       FROM applications a
@@ -51,6 +52,7 @@ async function getApplications(uid, teamId, asLeader = false) {
       JOIN users u ON a.applicant_id = u.id
       WHERE a.leader_id = $1 AND a.status IN ('pending', 'approved', 'rejected')
     `, [uid]);
+    console.log(`[DEBUG] getApplications: asLeader=true, uid=${uid}, found ${rows.length} applications. Leader IDs in result: ${rows.map(r => r.leader_id).join(", ")}`);
     return { items: rows };
   } else {
     const { rows } = await pool.query(`
@@ -62,6 +64,7 @@ async function getApplications(uid, teamId, asLeader = false) {
       LEFT JOIN users l ON a.leader_id = l.id
       WHERE a.applicant_id = $1
     `, [uid]);
+    console.log(`[DEBUG] getApplications: asApplicant, uid=${uid}, found ${rows.length} applications.`);
     return { items: rows };
   }
 }
@@ -96,6 +99,8 @@ async function createApplication(uid, body) {
   try {
     await client.query("BEGIN");
     
+    console.log(`[DEBUG] createApplication: uid=${uid}, team_id=${parsed.data.team_id}, opp_id=${parsed.data.opp_id}`);
+
     const { rows: teamRows } = await client.query("SELECT leader_id, name, opp_id FROM teams WHERE id = $1", [parsed.data.team_id]);
     const { rows: userRows } = await client.query("SELECT email, display_name FROM users WHERE id = $1", [uid]);
     
@@ -103,11 +108,14 @@ async function createApplication(uid, body) {
       throw new Error("NOT_FOUND:Takım veya kullanıcı bulunamadı");
     }
 
+    console.log(`[DEBUG] createApplication: Extracted leader_id=${teamRows[0].leader_id}, applicant_email=${userRows[0].email}`);
+
     const { rows } = await client.query(
       "INSERT INTO applications (opp_id, team_id, applicant_id, status, leader_id, applicant_email) VALUES ($1, $2, $3, 'pending', $4, $5) RETURNING id",
       [parsed.data.opp_id, parsed.data.team_id, uid, teamRows[0].leader_id, userRows[0].email]
     );
     const appId = rows[0].id;
+    console.log(`[DEBUG] createApplication: Inserted application id=${appId}`);
     
     await client.query("COMMIT");
     return { id: appId, opp_id: parsed.data.opp_id, team_id: parsed.data.team_id, status: "pending" };
@@ -137,12 +145,18 @@ async function handleDecision(uid, applicationId, body) {
     const appData = appRows[0];
     if (appData.status !== "pending") throw new Error("INVALID_STATE:Başvuru zaten değerlendirilmiş");
     
+    console.log(`[DEBUG] handleDecision: uid=${uid}, appId=${applicationId}, teamId=${appData.team_id}`);
+    
     const { rows: teamRows } = await client.query("SELECT leader_id, name FROM teams WHERE id = $1", [appData.team_id]);
     if (teamRows.length === 0) throw new Error("NOT_FOUND:Ekip bulunamadı");
+    
+    console.log(`[DEBUG] handleDecision: team leader_id=${teamRows[0].leader_id}, expected uid=${uid}`);
     if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkisiz işlem");
     
     const teamName = teamRows[0].name;
     const leaderMessage = parsed.data.message ? `\nLiderin Mesajı: "${parsed.data.message}"` : "";
+
+    console.log(`[DEBUG] handleDecision: executing decision=${parsed.data.decision}`);
 
     if (parsed.data.decision === "approve") {
       await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [appData.team_id, appData.applicant_id]);
