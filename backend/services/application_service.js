@@ -35,7 +35,7 @@ async function getApplications(uid, teamId, asLeader = false) {
         u.university as applicant_university,
         u.department as applicant_department,
         u.grade as applicant_classlevel,
-        u.bio as applicant_bio,
+        NULL as applicant_bio,
         u.github_url as applicant_github,
         u.linkedin_url as applicant_linkedin,
         (SELECT count(*) FROM team_members tm WHERE tm.user_id = u.id) as stats_active_teams,
