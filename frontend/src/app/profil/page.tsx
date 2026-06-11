@@ -279,13 +279,7 @@ export default function ProfilePage() {
     loadProfile();
   }, [isDemoSession, isDemoSessionChecked, router]);
 
-  useEffect(() => {
-    if (!loading && (user || isDemoSession) && !errorText) {
-      if (!hasMinimumSkills(profile.skillList, 3)) {
-        router.replace("/onboarding?return=/profil");
-      }
-    }
-  }, [loading, user, isDemoSession, errorText, profile.skillList, router]);
+
 
   const totalApplications = 3;
   const activeApplications = activeCount;
