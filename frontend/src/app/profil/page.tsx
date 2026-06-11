@@ -626,12 +626,27 @@ export default function ProfilePage() {
               <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Üniversite:</strong> {profile.details.university || "Belirtilmedi"}</div>
               <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Bölüm:</strong> {profile.details.department || "Belirtilmedi"}</div>
               <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Sınıf:</strong> {profile.details.classLevel || "Belirtilmedi"}</div>
-              {profile.details.githubUrl && (
-                <div><strong className="text-[var(--text-navy)] dark:text-slate-100">GitHub:</strong> <a href={profile.details.githubUrl} target="_blank" rel="noreferrer" className="text-[var(--flow-blue)] hover:underline">{profile.details.githubUrl}</a></div>
-              )}
-              {profile.details.linkedinUrl && (
-                <div><strong className="text-[var(--text-navy)] dark:text-slate-100">LinkedIn:</strong> <a href={profile.details.linkedinUrl} target="_blank" rel="noreferrer" className="text-[var(--flow-blue)] hover:underline">{profile.details.linkedinUrl}</a></div>
-              )}
+              <div><strong className="text-[var(--text-navy)] dark:text-slate-100">Kısa Biyografi:</strong> {profile.details.bio || "Belirtilmedi"}</div>
+              <div>
+                <strong className="text-[var(--text-navy)] dark:text-slate-100">GitHub:</strong>{" "}
+                {profile.details.githubUrl ? (
+                  <a href={profile.details.githubUrl} target="_blank" rel="noreferrer" className="text-[var(--flow-blue)] hover:underline">
+                    {profile.details.githubUrl}
+                  </a>
+                ) : (
+                  "Belirtilmedi"
+                )}
+              </div>
+              <div>
+                <strong className="text-[var(--text-navy)] dark:text-slate-100">LinkedIn:</strong>{" "}
+                {profile.details.linkedinUrl ? (
+                  <a href={profile.details.linkedinUrl} target="_blank" rel="noreferrer" className="text-[var(--flow-blue)] hover:underline">
+                    {profile.details.linkedinUrl}
+                  </a>
+                ) : (
+                  "Belirtilmedi"
+                )}
+              </div>
             </div>
             <button
               type="button"
