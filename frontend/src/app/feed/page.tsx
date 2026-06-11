@@ -965,7 +965,7 @@ function FeedPageInner() {
     if (!selectedOpportunity) return new Set<string>();
     return new Set(
       myApplications
-        .filter((a) => a.oppId === selectedOpportunity.id && a.status !== "Reddedildi")
+        .filter((a) => a.oppId === selectedOpportunity.id && a.status !== "Reddedildi" && a.status !== "Iptal Edildi")
         .map((a) => a.teamName),
     );
   }, [myApplications, selectedOpportunity]);
@@ -979,7 +979,7 @@ function FeedPageInner() {
         alert("Maksimum ekip üyeliği limitine ulaştınız. Bir kullanıcı aynı anda en fazla 3 ekipte yer alabilir. Bu nedenle yeni bir takıma başvuru yapamazsınız.");
         return;
       }
-      if (myApplications.some(a => a.oppId === selectedOpportunity.id && a.teamName === teamId && a.status !== "Reddedildi")) return;
+      if (myApplications.some(a => a.oppId === selectedOpportunity.id && a.teamName === teamId && a.status !== "Reddedildi" && a.status !== "Iptal Edildi")) return;
 
       const row = await addApplication({
         oppId: selectedOpportunity.id,
@@ -1010,7 +1010,7 @@ function FeedPageInner() {
       alert("Maksimum ekip üyeliği limitine ulaştınız. Bir kullanıcı aynı anda en fazla 3 ekipte yer alabilir. Bu nedenle yeni bir takıma başvuru yapamazsınız.");
       return;
     }
-    if (myApplications.some(a => a.oppId === opp.id && a.teamName === teamName && a.status !== "Reddedildi")) {
+    if (myApplications.some(a => a.oppId === opp.id && a.teamName === teamName && a.status !== "Reddedildi" && a.status !== "Iptal Edildi")) {
       alert("Bu projeye zaten başvurdunuz.");
       return;
     }
