@@ -137,7 +137,7 @@ export async function decideApplication(id: string, action: "approve" | "reject"
   
 
   try {
-    await apiPost(`/applications/${id}/decision`, { action, message });
+    await apiPost(`/applications/${id}/decision`, { decision: action, message });
     broadcastApplicationsUpdated();
   } catch (err) {
     console.error(err);

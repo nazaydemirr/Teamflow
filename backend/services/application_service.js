@@ -51,7 +51,7 @@ async function getApplications(uid, teamId, asLeader = false) {
       JOIN opportunities o ON a.opp_id = o.id
       LEFT JOIN teams t ON a.team_id = t.id
       JOIN users u ON a.applicant_id = u.id
-      WHERE a.leader_id = $1 AND a.status IN ('pending', 'approved', 'rejected')
+      WHERE a.leader_id = $1 AND a.status = 'pending'
     `, [uid]);
     console.log(`[DEBUG] getApplications: asLeader=true, uid=${uid}, found ${rows.length} applications. Leader IDs in result: ${rows.map(r => r.leader_id).join(", ")}`);
     return { items: rows };
