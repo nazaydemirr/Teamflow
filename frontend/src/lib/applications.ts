@@ -37,9 +37,7 @@ export function broadcastApplicationsUpdated() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event("teamflow-applications"));
 }
-
-
-  
+export async function fetchApplications(): Promise<StoredApplication[]> {
   try {
     const data = await apiGet("/applications") as any;
     if (!data.items) return [];
