@@ -28,6 +28,8 @@ async function getApplications(uid, teamId, asLeader = false) {
     const { rows } = await pool.query(`
       SELECT 
         a.*, 
+        o.title as "oppTitle",
+        t.name as team_name,
         u.display_name as applicant_label, 
         u.skills as applicant_skills,
         u.university as applicant_university,
@@ -43,9 +45,10 @@ async function getApplications(uid, teamId, asLeader = false) {
         (SELECT array_agg(t2.name) FROM team_members tm JOIN teams t2 ON tm.team_id = t2.id WHERE tm.user_id = u.id) as stats_active_teams_names,
         (SELECT array_agg(t2.name) FROM teams t2 WHERE t2.leader_id = u.id) as stats_led_teams_names
       FROM applications a
-      JOIN teams t ON a.team_id = t.id
+      JOIN opportunities o ON a.opp_id = o.id
+      LEFT JOIN teams t ON a.team_id = t.id
       JOIN users u ON a.applicant_id = u.id
-      WHERE t.leader_id = $1 AND a.status = 'pending'
+      WHERE (t.leader_id = $1 OR o.author_id = $1) AND a.status = 'pending'
     `, [uid]);
     return { items: rows };
   } else {

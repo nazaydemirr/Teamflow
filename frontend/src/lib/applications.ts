@@ -129,7 +129,7 @@ export async function fetchApplications(): Promise<StoredApplication[]> {
       id: item.id,
       oppId: item.opp_id,
       oppTitle: item.oppTitle || `İlan ${item.opp_id.substring(0, 6)}`,
-      teamName: item.team_id,
+      teamName: item.team_name || item.team_id,
       applicantLabel: item.applicant_label || "",
       applicantSkills: item.applicant_skills || [],
       status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : item.status === "cancelled" ? "Iptal Edildi" : "Reddedildi",
