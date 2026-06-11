@@ -298,16 +298,18 @@ export function NotificationBell() {
                         >
                           {expandedNotifId === n.id ? "Detayı Gizle" : "Detay"}
                         </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAcceptInvite(n.team_id as string, n.id);
-                          }}
-                          disabled={acceptingTeamId === n.team_id}
-                          className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                        >
-                          {acceptingTeamId === n.team_id ? "Katılım Sağlanıyor..." : "Kabul Et"}
-                        </button>
+                        {!n.message.includes("çıkarıldınız") && !n.message.includes("onayladı") && !n.message.includes("reddetti") && !n.message.includes("kabul etti") && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAcceptInvite(n.team_id as string, n.id);
+                            }}
+                            disabled={acceptingTeamId === n.team_id}
+                            className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                          >
+                            {acceptingTeamId === n.team_id ? "Katılım Sağlanıyor..." : "Kabul Et"}
+                          </button>
+                        )}
                       </div>
                       
                       {expandedNotifId === n.id && teamDetailsCache[n.team_id] && (
