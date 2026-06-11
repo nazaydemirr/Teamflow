@@ -333,8 +333,8 @@ export default function ProfilePage() {
                 <p className="text-[15px] mt-1 text-[var(--text-slate)]">
                   {profile.bio || "Biyografi henuz girilmedi."}
                 </p>
-                <p className="text-sm mt-1 text-[var(--text-slate)]">
-                  {profile.memberSince || "Uyelik tarihi henuz secilmedi."}
+                <p className="mt-2 text-sm text-[var(--text-slate)] dark:text-slate-400">
+                  {profile.memberSince ? `Üyelik Tarihi: ${profile.memberSince}` : "Üyelik tarihi henüz seçilmedi."}
                 </p>
                 <div className="mt-2 flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-3 text-xs text-[var(--text-slate)]">
                   <span className="truncate max-w-[200px] sm:max-w-none">{user?.email ?? "demo@teamflow.com (Demo oturum)"}</span>

@@ -19,12 +19,14 @@ async function getProfile(uid) {
   const { rows } = await pool.query(`
     SELECT 
       id as uid, email, display_name as "displayName", skills, website_url,
-      university, department, grade, interests, experience_level, github_url, linkedin_url
+      university, department, grade, interests, experience_level, github_url, linkedin_url, created_at
     FROM users WHERE id = $1
   `, [uid]);
   if (rows.length === 0) throw new Error("NOT_FOUND:Kullanıcı profili bulunamadı");
   
   const user = rows[0];
+  user.memberSince = user.created_at ? new Date(user.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' }) : "Belirtilmedi";
+  delete user.created_at;
 
   // Active Applications Count (Beklemede veya Onaylandi) ve Uye oldugu takimlar (Lideri haric)
   const { rows: activeStats } = await pool.query(`
