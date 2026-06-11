@@ -19,7 +19,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
-  const [studentId, setStudentId] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +35,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
       setTitle("");
       setDeadline("");
       setDescription("");
-      setStudentId("");
       setSelectedTags([]);
       setError("");
       setIsSubmitting(false);
@@ -60,10 +58,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
     }
     if (!description.trim()) {
       setError("Açıklama zorunludur.");
-      return;
-    }
-    if (type === "bitirme-projesi" && !studentId.trim()) {
-      setError("Bitirme projesi için Profil ID zorunludur.");
       return;
     }
     
@@ -102,7 +96,7 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
           membersCurrent: 1, // Author is in the team
           membersMax: finalMembersMax,
           description,
-          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false, isOwner: true, leader: { name: demoFullName, initials: demoInitials, role: "Proje Sahibi", id: studentId } }] : [],
+          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false, isOwner: true, leader: { name: demoFullName, initials: demoInitials, role: "Proje Sahibi", id: `demo-${Date.now()}` } }] : [],
         };
         
         const stored = localStorage.getItem("teamflow_custom_opportunities");
@@ -209,7 +203,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tarih (Deadline)</label>
                   <input 
@@ -221,19 +214,6 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
                     className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"
                   />
                 </div>
-                {type === "bitirme-projesi" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Profil / Öğrenci ID</label>
-                    <input 
-                      type="text" 
-                      required 
-                      placeholder="Örn: 20210001"
-                      value={studentId}
-                      onChange={(e) => setStudentId(e.target.value)}
-                      className="w-full bg-[var(--soft-slate)] dark:bg-[#0c1118] border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[var(--text-navy)] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--flow-blue)] transition-all"
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2">
