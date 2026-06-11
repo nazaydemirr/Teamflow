@@ -123,7 +123,11 @@ router.post("/invite", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Geçersiz kullanıcı ID'si." });
     }
 
-    const prompt = `Sen bir takım kurma asistanısın. ${eksik_yetenek} yeteneğine sahip bu kişiye, ${teamName} takımının ona ihtiyacı olduğunu söyleyen samimi bir davet mesajı yaz. Mesaj kısa, teşvik edici ve profesyonel olsun.`;
+    const prompt = `Sen bir takım kurma asistanısın. ${eksik_yetenek} yeteneğine sahip bu kişiye, ${teamName} takımının ona ihtiyacı olduğunu söyleyen kısa, samimi ve profesyonel bir davet mesajı yaz.
+ÖNEMLİ KURALLAR:
+- Kesinlikle alternatif seçenekler sunma (Seçenek 1, Seçenek 2 vb. yazma).
+- Sadece tek bir mesaj metni üret.
+- Mesajın başına veya sonuna açıklama, not, tavsiye veya giriş cümlesi (örn: "İşte mesajınız:") ekleme. Sadece gönderilecek mesajın kendisini ver.`;
 
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
