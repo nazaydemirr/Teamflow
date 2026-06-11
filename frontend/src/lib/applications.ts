@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 
 export type ApplicationStatus = "Beklemede" | "Onaylandi" | "Reddedildi" | "Iptal Edildi";
 
