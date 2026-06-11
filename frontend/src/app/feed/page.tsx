@@ -884,30 +884,44 @@ function FeedPageInner() {
       }
 
       if (customDateStart || customDateEnd) {
-        const deadlineDate = parseTurkishDeadline(opportunity.deadline);
-        if (!deadlineDate) return false;
+        // Özel aralık: createdAt üzerinden (eğer yoksa fallback olarak şu anki zaman kabul edilebilir veya deadline, ama gerçek db'de var)
+        const createDateStr = opportunity.createdAt || opportunity.deadline;
+        const oppCreatedAt = new Date(createDateStr);
+        if (isNaN(oppCreatedAt.getTime())) return false;
         
         if (customDateStart) {
           const start = new Date(customDateStart);
           start.setHours(0, 0, 0, 0);
-          if (deadlineDate < start) return false;
+          if (oppCreatedAt < start) return false;
         }
         if (customDateEnd) {
           const end = new Date(customDateEnd);
           end.setHours(23, 59, 59, 999);
-          if (deadlineDate > end) return false;
+          if (oppCreatedAt > end) return false;
         }
         return true;
       }
 
       if (!quickDateFilter) return true;
-      const deadlineDate = parseTurkishDeadline(opportunity.deadline);
-      if (!deadlineDate) return false;
-      const diffDays = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-      if (quickDateFilter === "last-week") return diffDays >= 0 && diffDays <= 7;
-      if (quickDateFilter === "this-month") return deadlineDate.getMonth() === now.getMonth();
-      if (quickDateFilter === "upcoming-deadline") return diffDays >= 0 && diffDays <= 14;
+      // Deadline yaklaşanlar: deadline üzerinden
+      if (quickDateFilter === "upcoming-deadline") {
+        const deadlineDate = parseTurkishDeadline(opportunity.deadline);
+        if (!deadlineDate) return false;
+        const diffDays = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 14;
+      }
+
+      // Son 1 hafta ve Bu ay: createdAt üzerinden
+      const createDateStr = opportunity.createdAt || new Date().toISOString(); 
+      const oppCreatedAt = new Date(createDateStr);
+      if (isNaN(oppCreatedAt.getTime())) return false;
+      const createdDiffDays = Math.ceil((now.getTime() - oppCreatedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (quickDateFilter === "last-week") return createdDiffDays >= 0 && createdDiffDays <= 7;
+      if (quickDateFilter === "this-month") return createdDiffDays >= 0 && createdDiffDays <= 30; // Son 1 ay
+      
+      return true;
       return true;
     });
   }, [activeCategories, activeTech, opportunities, quickDateFilter, customDateStart, customDateEnd, searchQuery]);

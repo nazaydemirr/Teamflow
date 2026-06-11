@@ -31,6 +31,7 @@ export type Opportunity = {
   prize?: string;
   teams: Team[];
   type?: "hackathon" | "yarisma" | "bitirme-projesi" | string;
+  createdAt?: string;
 };
 
 /** MVP ilan listesi — services/api/server.js ile aynı veri; Next /api ve harici API ile paylaşılır. */

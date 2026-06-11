@@ -17,6 +17,7 @@ async function getOpportunities(uid, limit = 20, cursor = 0) {
 
   const { rows: oppRows } = await pool.query(`
     SELECT o.id, o.title, o.description, o.tags, o.deadline, o.members_max as "membersMax", o.type, o.author_id,
+           o.created_at as "createdAt",
            u.display_name as author_name
     FROM opportunities o
     LEFT JOIN users u ON o.author_id = u.id
@@ -161,12 +162,32 @@ async function createOpportunity(uid, body) {
     throw new Error("LIMIT_REACHED:Aynı başlıklı ilanı kısa süre içinde tekrar oluşturamazsınız. Lütfen bekleyin.");
   }
 
-  const { rows } = await pool.query(
-    `INSERT INTO opportunities (title, description, tags, deadline, members_max, type, author_id) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [parsed.data.title, parsed.data.description, JSON.stringify(parsed.data.tags), parsed.data.deadline, parsed.data.membersMax, parsed.data.type || null, uid]
-  );
-  return { id: rows[0].id, ...parsed.data, author_id: uid };
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `INSERT INTO opportunities (title, description, tags, deadline, members_max, type, author_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [parsed.data.title, parsed.data.description, JSON.stringify(parsed.data.tags), parsed.data.deadline, parsed.data.membersMax, parsed.data.type || null, uid]
+    );
+    const oppId = rows[0].id;
+
+    if (parsed.data.type === "bitirme-projesi") {
+      const { rows: teamRows } = await client.query(
+        `INSERT INTO teams (opp_id, name, description, leader_id) VALUES ($1, $2, $3, $4) RETURNING id`,
+        [oppId, "Proje Ekibi", "Bitirme Projesi Takımı", uid]
+      );
+      await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)", [teamRows[0].id, uid]);
+    }
+    
+    await client.query("COMMIT");
+    return { id: oppId, ...parsed.data, author_id: uid };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function updateOpportunity(uid, oppId, body) {
