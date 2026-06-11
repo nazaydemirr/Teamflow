@@ -115,6 +115,23 @@ router.post("/:applicationId/decision", async (req, res) => {
   }
 });
 
+router.post("/add-member", authMiddleware, async (req, res) => {
+  try {
+    const { teamId, userId } = req.body;
+    if (!teamId || !userId) {
+      return sendError(res, 400, "VALIDATION_ERROR", "Takım ID ve Kullanıcı ID zorunludur.");
+    }
+    const result = await applicationService.addMemberDirectly(req.user.uid, teamId, userId);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, code === "NOT_FOUND" ? 404 : code === "FORBIDDEN" ? 403 : 400, code, msg, err.details);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const result = await applicationService.deleteApplication(req.user.uid, req.params.id);

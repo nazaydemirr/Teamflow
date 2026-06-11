@@ -34,7 +34,12 @@ async function getApplications(uid, teamId, asLeader = false) {
     `, [uid]);
     return { items: rows };
   } else {
-    const { rows } = await pool.query("SELECT * FROM applications WHERE applicant_id = $1", [uid]);
+    const { rows } = await pool.query(`
+      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills 
+      FROM applications a
+      JOIN users u ON a.applicant_id = u.id
+      WHERE a.applicant_id = $1
+    `, [uid]);
     return { items: rows };
   }
 }
@@ -167,6 +172,55 @@ async function acceptInvite(uid, teamId) {
   }
 }
 
+async function addMemberDirectly(uid, teamId, targetUserId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // Check team exists and uid is leader
+    const { rows: teamRows } = await client.query("SELECT * FROM teams WHERE id = $1 FOR UPDATE", [teamId]);
+    if (teamRows.length === 0) throw new Error("NOT_FOUND:Takım bulunamadı");
+    if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkiniz yok");
+    
+    // Check target user exists
+    const { rows: userRows } = await client.query("SELECT id FROM users WHERE id = $1", [targetUserId]);
+    if (userRows.length === 0) throw new Error("NOT_FOUND:Kullanıcı bulunamadı");
+    
+    // Check team full
+    if (teamRows[0].members_max && teamRows[0].members_current >= teamRows[0].members_max) {
+      throw new Error("VALIDATION_ERROR:Takım kapasitesi dolu");
+    }
+
+    // Check if user is already in team
+    const { rows: existingMember } = await client.query("SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2", [teamId, targetUserId]);
+    if (existingMember.length > 0) throw new Error("VALIDATION_ERROR:Kullanıcı zaten takımda");
+    
+    // Add to team_members
+    await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)", [teamId, targetUserId]);
+    await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [teamId]);
+    
+    // Add to applications as 'approved'
+    await client.query(
+      "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'approved')",
+      [teamRows[0].opp_id, teamId, targetUserId]
+    );
+    
+    // Send notification to the user
+    await client.query(
+      "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)", 
+      [targetUserId, teamId, `Sizi doğrudan takıma (${teamRows[0].name}) eklediler!`]
+    );
+    
+    await client.query("COMMIT");
+    return { ok: true };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function deleteApplication(uid, applicationId) {
   const client = await pool.connect();
   try {
@@ -213,5 +267,6 @@ module.exports = {
   createApplication,
   handleDecision,
   acceptInvite,
-  deleteApplication
+  deleteApplication,
+  addMemberDirectly
 };

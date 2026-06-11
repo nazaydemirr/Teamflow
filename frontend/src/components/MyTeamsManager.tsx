@@ -2,7 +2,7 @@
 
 import { useApplications } from "@/hooks/useApplications";
 import { useTeamChat } from "@/hooks/useTeamChat";
-import { addApprovedMember, deleteApplication, deleteApplicationsByOpp } from "@/lib/applications";
+import { addMemberById, deleteApplication, deleteApplicationsByOpp } from "@/lib/applications";
 import { getAllOpportunities, fetchMyOpportunities, deleteOpportunityAsync, type Opportunity, type Team } from "@/lib/opportunities-data";
 import { EditTeamModal } from "./EditTeamModal";
 import { sendChatMessage } from "@/lib/chats";
@@ -402,16 +402,15 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                             alert("Üye eklemek için önce bu ilana ait bir takım oluşturmalısınız.");
                             return;
                           }
-                          await addApprovedMember({
-                            oppId: opp.id,
-                            oppTitle: opp.title,
-                            teamName: myTeam.name,
-                            applicantLabel: `Kullanici (${newMemberId.trim()})`,
-                            applicantSkills: ["-"],
-                          });
-                          setNewMemberId("");
-                          setAddingMemberToOpp(null);
-                          refresh();
+                          try {
+                            await addMemberById(myTeam.id, newMemberId.trim());
+                            alert("Kullanıcı başarıyla takıma eklendi!");
+                            setNewMemberId("");
+                            setAddingMemberToOpp(null);
+                            refresh();
+                          } catch (err: any) {
+                            alert("Kullanıcı eklenirken hata oluştu. Lütfen geçerli bir ID girdiğinizden emin olun.");
+                          }
                         }}
                         className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
                       >

@@ -149,22 +149,20 @@ export type NewApplicationInput = {
   applicantSkills: string[];
 };
 
-export async function addApprovedMember(entry: NewApplicationInput) {
+export async function addMemberById(teamId: string, userId: string) {
   if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
-    const row: StoredApplication = {
-      ...entry,
-      status: "Onaylandi",
-      id: `app_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      appliedAt: new Date().toISOString(),
-    };
-    persistDemoApplications([...listDemoApplications(), row]);
-    return row;
+    alert("Demo modunda ID ile üye ekleme desteklenmemektedir.");
+    return null;
   }
 
-  console.log("Mock addApprovedMember:", entry);
-  // Backend doesn't support leaders adding members directly yet in MVP
-  // For now, this is a stub.
-  return null;
+  try {
+    const data = await apiPost("/applications/add-member", { teamId, userId });
+    broadcastApplicationsUpdated();
+    return data;
+  } catch (err) {
+    console.error("ID ile uye ekleme hatasi:", err);
+    throw err;
+  }
 }
 
 export async function addApplication(entry: NewApplicationInput): Promise<StoredApplication | null> {
