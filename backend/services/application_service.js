@@ -150,11 +150,17 @@ async function acceptInvite(uid, teamId) {
     await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)", [teamId, uid]);
     await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [teamId]);
     
-    // Add to applications as 'approved'
-    await client.query(
-      "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'approved')",
-      [teamRows[0].opp_id, teamId, uid]
+    // Update application status to 'approved' if it was 'invited', else insert 'approved'
+    const { rowCount } = await client.query(
+      "UPDATE applications SET status = 'approved' WHERE team_id = $1 AND applicant_id = $2 AND status = 'invited'",
+      [teamId, uid]
     );
+    if (rowCount === 0) {
+      await client.query(
+        "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'approved')",
+        [teamRows[0].opp_id, teamId, uid]
+      );
+    }
     
     // Add notification to leader
     await client.query(
@@ -195,20 +201,16 @@ async function addMemberDirectly(uid, teamId, targetUserId) {
     const { rows: existingMember } = await client.query("SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2", [teamId, targetUserId]);
     if (existingMember.length > 0) throw new Error("VALIDATION_ERROR:Kullanıcı zaten takımda");
     
-    // Add to team_members
-    await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)", [teamId, targetUserId]);
-    await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [teamId]);
-    
-    // Add to applications as 'approved'
+    // Add to applications as 'invited' instead of 'approved' and don't add to team_members yet
     await client.query(
-      "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'approved')",
+      "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'invited') ON CONFLICT DO NOTHING",
       [teamRows[0].opp_id, teamId, targetUserId]
     );
     
     // Send notification to the user
     await client.query(
       "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)", 
-      [targetUserId, teamId, `Sizi doğrudan takıma (${teamRows[0].name}) eklediler!`]
+      [targetUserId, teamId, `Sizi takıma (${teamRows[0].name}) davet ettiler!`]
     );
     
     await client.query("COMMIT");
