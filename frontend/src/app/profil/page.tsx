@@ -42,6 +42,10 @@ type ProfileData = {
   teams: Array<{ name: string; project: string; role: string }>;
   activities: string[];
   details: UserProfileDetails;
+  stats?: {
+    memberTeamsCount: number;
+    leaderTeamsCount: number;
+  };
 };
 
 function statusStyles(status: ApplicationStatus): string {
@@ -268,6 +272,10 @@ export default function ProfilePage() {
             };
           }),
           activities: rawActivities.filter((item: unknown): item is string => typeof item === "string"),
+          stats: {
+            memberTeamsCount: raw.stats?.memberTeamsCount || 0,
+            leaderTeamsCount: raw.stats?.leaderTeamsCount || 0,
+          }
         });
       } catch (e) {
         setErrorText("Profil verisi okunurken bir hata olustu.");
@@ -567,17 +575,15 @@ export default function ProfilePage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title="Son Aktivite Akisi">
               <ul className="space-y-3">
-                {profile.activities.length === 0 ? (
-                  <li className="text-sm leading-6 text-[var(--text-slate)]">
-                    Henuz aktivite secimi yapilmadi.
-                  </li>
-                ) : (
-                  profile.activities.map((item) => (
-                    <li key={item} className="text-sm leading-6 text-[var(--text-slate)]">
-                      • {item}
-                    </li>
-                  ))
-                )}
+                <li className="text-sm leading-6 text-[var(--text-slate)]">
+                  Üyelik tarihinizden itibaren:
+                </li>
+                <li className="text-sm leading-6 text-[var(--text-slate)]">
+                  • <strong className="font-semibold">{profile.stats?.memberTeamsCount || 0}</strong> takıma üye olarak katıldınız.
+                </li>
+                <li className="text-sm leading-6 text-[var(--text-slate)]">
+                  • <strong className="font-semibold">{profile.stats?.leaderTeamsCount || 0}</strong> takıma lider olarak katıldınız.
+                </li>
               </ul>
             </Card>
           </div>

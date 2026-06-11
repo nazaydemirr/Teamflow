@@ -36,6 +36,11 @@ async function getProfile(uid) {
   `, [uid]);
   const activeCount = parseInt(activeStats[0].count);
 
+  const { rows: memberStats } = await pool.query(`
+    SELECT count(*) as count FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.user_id = $1 AND t.leader_id != $1
+  `, [uid]);
+  const memberTeamsCount = parseInt(memberStats[0].count);
+
   // Leader Count (Kendi actigi firsatlar + Lideri oldugu takimlar)
   const { rows: leaderStats } = await pool.query(`
     SELECT count(DISTINCT o.id) as opp_count, count(DISTINCT t.id) as team_count
@@ -46,7 +51,12 @@ async function getProfile(uid) {
   
   const leaderCount = parseInt(leaderStats[0].team_count) > 0 ? parseInt(leaderStats[0].team_count) : parseInt(leaderStats[0].opp_count);
 
-  return { ...user, stats: { activeCount, leaderCount } };
+  const { rows: leaderTeamsStats } = await pool.query(`
+    SELECT count(DISTINCT t.id) as count FROM teams t WHERE t.leader_id = $1
+  `, [uid]);
+  const leaderTeamsCount = parseInt(leaderTeamsStats[0].count);
+
+  return { ...user, stats: { activeCount, leaderCount, memberTeamsCount, leaderTeamsCount } };
 }
 
 async function updateProfile(uid, body, isPartial = false) {
