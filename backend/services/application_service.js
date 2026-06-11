@@ -78,14 +78,19 @@ async function createApplication(uid, body) {
     throw error;
   }
 
-  const { rows: pendingApps } = await pool.query("SELECT count(*) as count FROM applications WHERE applicant_id = $1 AND status = 'pending'", [uid]);
+  const { rows: pendingApps } = await pool.query("SELECT id FROM applications WHERE applicant_id = $1 AND team_id = $2 AND status IN ('pending', 'invited')", [uid, parsed.data.team_id]);
+  if (pendingApps.length > 0) {
+    return { id: pendingApps[0].id, opp_id: parsed.data.opp_id, team_id: parsed.data.team_id, status: "pending", message: "Zaten başvurunuz mevcut" };
+  }
+
+  const { rows: pendingCount } = await pool.query("SELECT count(*) as count FROM applications WHERE applicant_id = $1 AND status = 'pending'", [uid]);
   const { rows: memberTeams } = await pool.query(`
     SELECT count(*) as count 
     FROM team_members tm
     JOIN teams t ON tm.team_id = t.id
     WHERE tm.user_id = $1 AND t.leader_id != $1
   `, [uid]);
-  const totalCount = parseInt(pendingApps[0].count) + parseInt(memberTeams[0].count);
+  const totalCount = parseInt(pendingCount[0].count) + parseInt(memberTeams[0].count);
 
   if (totalCount >= 3) {
     throw new Error("LIMIT_REACHED:En fazla 3 takımda üye olabilir veya bekleyen başvuruya sahip olabilirsiniz.");
@@ -160,13 +165,15 @@ async function handleDecision(uid, applicationId, body) {
     console.log(`[DEBUG] handleDecision: executing decision=${parsed.data.decision}`);
 
     if (parsed.data.decision === "approve") {
-      await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [appData.team_id, appData.applicant_id]);
-      await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [appData.team_id]);
+      const { rowCount } = await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [appData.team_id, appData.applicant_id]);
+      if (rowCount > 0) {
+        await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [appData.team_id]);
+        await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [
+          appData.applicant_id, 
+          `Tebrikler! Başvurduğunuz "${teamName}" takımı başvurunuzu onayladı.${leaderMessage}`
+        ]);
+      }
       await client.query("UPDATE applications SET status = 'approved' WHERE id = $1", [applicationId]);
-      await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [
-        appData.applicant_id, 
-        `Tebrikler! Başvurduğunuz "${teamName}" takımı başvurunuzu onayladı.${leaderMessage}`
-      ]);
     } else {
       await client.query("UPDATE applications SET status = 'rejected' WHERE id = $1", [applicationId]);
       await client.query("INSERT INTO notifications (user_id, message) VALUES ($1, $2)", [
@@ -258,10 +265,15 @@ async function addMemberDirectly(uid, teamId, targetUserId) {
     if (existingMember.length > 0) throw new Error("VALIDATION_ERROR:Kullanıcı zaten takımda");
     
     // Add to applications as 'invited' instead of 'approved' and don't add to team_members yet
-    await client.query(
+    const { rowCount } = await client.query(
       "INSERT INTO applications (opp_id, team_id, applicant_id, status) VALUES ($1, $2, $3, 'invited') ON CONFLICT DO NOTHING",
       [teamRows[0].opp_id, teamId, targetUserId]
     );
+    
+    if (rowCount === 0) {
+      await client.query("ROLLBACK");
+      return { ok: true, message: "Kullanıcıya zaten davet gönderilmiş." };
+    }
     
     // Send notification to the user
     await client.query(
@@ -293,19 +305,19 @@ async function removeMemberDirectly(uid, teamId, targetUserId) {
     const { rowCount } = await client.query("DELETE FROM team_members WHERE team_id = $1 AND user_id = $2", [teamId, targetUserId]);
     if (rowCount > 0) {
       await client.query("UPDATE teams SET members_current = GREATEST(0, members_current - 1) WHERE id = $1", [teamId]);
+      
+      // Mark application as cancelled or deleted
+      await client.query(
+        "DELETE FROM applications WHERE team_id = $1 AND applicant_id = $2",
+        [teamId, targetUserId]
+      );
+      
+      // Send notification to the user
+      await client.query(
+        "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)", 
+        [targetUserId, teamId, `Takımdan (${teamRows[0].name}) çıkarıldınız.`]
+      );
     }
-    
-    // Mark application as cancelled or deleted
-    await client.query(
-      "DELETE FROM applications WHERE team_id = $1 AND applicant_id = $2",
-      [teamId, targetUserId]
-    );
-    
-    // Send notification to the user
-    await client.query(
-      "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)", 
-      [targetUserId, teamId, `Takımdan (${teamRows[0].name}) çıkarıldınız.`]
-    );
     
     await client.query("COMMIT");
     return { ok: true };

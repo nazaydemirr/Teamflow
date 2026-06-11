@@ -39,7 +39,7 @@ async function createTeam(uid, body) {
 
   const { rows: existingOppTeams } = await pool.query("SELECT id FROM teams WHERE opp_id = $1 AND leader_id = $2", [parsed.data.opp_id, uid]);
   if (existingOppTeams.length > 0) {
-    throw new Error("LIMIT_REACHED:Bu ilan için zaten bir takım oluşturdunuz. Her ilan için sadece bir takım kurabilirsiniz.");
+    return { id: existingOppTeams[0].id, ...parsed.data, message: "Bu ilan için zaten bir takım oluşturdunuz." };
   }
 
   const client = await pool.connect();

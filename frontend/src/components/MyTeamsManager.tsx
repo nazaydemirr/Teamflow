@@ -93,6 +93,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
   const [newMemberId, setNewMemberId] = useState("");
   const [profileId, setProfileId] = useState("");
   const [openAccordionId, setOpenAccordionId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   const [editingOpp, setEditingOpp] = useState<Opportunity | null>(null);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -643,17 +644,27 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                               </div>
                               {isLeader && !m.isLeaderRole && myTeam?.id && (
                                 <button
+                                  disabled={removingMemberId === m.id}
                                   onClick={async () => {
                                     if (window.confirm("Bu üyeyi ekipten çıkarmak istediğinize emin misiniz?")) {
-                                      await removeTeamMemberById(myTeam.id!, m.id);
-                                      refresh();
+                                      setRemovingMemberId(m.id);
+                                      try {
+                                        await removeTeamMemberById(myTeam.id!, m.id);
+                                        refresh();
+                                      } finally {
+                                        setRemovingMemberId(null);
+                                      }
                                     }
                                   }}
-                                  className="rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                                  className="flex items-center justify-center rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
                                 >
-                                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
+                                  {removingMemberId === m.id ? (
+                                    <span className="size-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent dark:border-red-400" />
+                                  ) : (
+                                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  )}
                                 </button>
                               )}
                             </li>

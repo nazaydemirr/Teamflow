@@ -186,11 +186,11 @@ async function createOpportunity(uid, body) {
 
   // Duplicate check
   const { rows: duplicateRows } = await pool.query(
-    "SELECT id FROM opportunities WHERE author_id = $1 AND title = $2 AND created_at > NOW() - INTERVAL '1 minute'",
+    "SELECT * FROM opportunities WHERE author_id = $1 AND title = $2 AND created_at > NOW() - INTERVAL '1 minute'",
     [uid, parsed.data.title]
   );
   if (duplicateRows.length > 0) {
-    throw new Error("LIMIT_REACHED:Aynı başlıklı ilanı kısa süre içinde tekrar oluşturamazsınız. Lütfen bekleyin.");
+    return { id: duplicateRows[0].id, ...parsed.data, author_id: uid, message: "Aynı ilan zaten oluşturuldu." };
   }
 
   const client = await pool.connect();
@@ -204,11 +204,14 @@ async function createOpportunity(uid, body) {
     const oppId = rows[0].id;
 
     if (parsed.data.type === "bitirme-projesi") {
-      const { rows: teamRows } = await client.query(
-        `INSERT INTO teams (opp_id, name, description, leader_id) VALUES ($1, $2, $3, $4) RETURNING id`,
-        [oppId, "Proje Ekibi", "Bitirme Projesi Takımı", uid]
-      );
-      await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)", [teamRows[0].id, uid]);
+      const { rows: existingTeams } = await client.query("SELECT id FROM teams WHERE opp_id = $1", [oppId]);
+      if (existingTeams.length === 0) {
+        const { rows: teamRows } = await client.query(
+          `INSERT INTO teams (opp_id, name, description, leader_id) VALUES ($1, $2, $3, $4) RETURNING id`,
+          [oppId, "Proje Ekibi", "Bitirme Projesi Takımı", uid]
+        );
+        await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)", [teamRows[0].id, uid]);
+      }
     }
     
     await client.query("COMMIT");
