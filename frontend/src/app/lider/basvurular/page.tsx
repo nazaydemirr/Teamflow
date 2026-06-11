@@ -206,6 +206,7 @@ export default function LeaderApplicationsPage() {
       }
 
       refresh();
+      setLeaderApps(prev => prev.filter(a => a.id !== row.id));
       const msg = isApprove ? "Basvuran onaylandi (US.03 / US.04 demo)." : "Basvuru reddedildi.";
       setToast(msg);
       setTimeout(() => setToast(null), 2600);
