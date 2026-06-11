@@ -221,6 +221,44 @@ async function addMemberDirectly(uid, teamId, targetUserId) {
   }
 }
 
+async function removeMemberDirectly(uid, teamId, targetUserId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // Check team exists and uid is leader
+    const { rows: teamRows } = await client.query("SELECT * FROM teams WHERE id = $1 FOR UPDATE", [teamId]);
+    if (teamRows.length === 0) throw new Error("NOT_FOUND:Takım bulunamadı");
+    if (teamRows[0].leader_id !== uid) throw new Error("FORBIDDEN:Yetkiniz yok");
+    
+    // Remove from team_members
+    const { rowCount } = await client.query("DELETE FROM team_members WHERE team_id = $1 AND user_id = $2", [teamId, targetUserId]);
+    if (rowCount > 0) {
+      await client.query("UPDATE teams SET members_current = GREATEST(0, members_current - 1) WHERE id = $1", [teamId]);
+    }
+    
+    // Mark application as cancelled or deleted
+    await client.query(
+      "DELETE FROM applications WHERE team_id = $1 AND applicant_id = $2",
+      [teamId, targetUserId]
+    );
+    
+    // Send notification to the user
+    await client.query(
+      "INSERT INTO notifications (user_id, team_id, message) VALUES ($1, $2, $3)", 
+      [targetUserId, teamId, `Takımdan (${teamRows[0].name}) çıkarıldınız.`]
+    );
+    
+    await client.query("COMMIT");
+    return { ok: true };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function deleteApplication(uid, applicationId) {
   const client = await pool.connect();
   try {
@@ -268,5 +306,6 @@ module.exports = {
   handleDecision,
   acceptInvite,
   deleteApplication,
-  addMemberDirectly
+  addMemberDirectly,
+  removeMemberDirectly
 };

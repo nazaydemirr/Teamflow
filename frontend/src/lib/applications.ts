@@ -165,6 +165,21 @@ export async function addMemberById(teamId: string, userId: string) {
   }
 }
 
+export async function removeTeamMemberById(teamId: string, userId: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    alert("Demo modunda ekipten üye çıkarma desteklenmemektedir.");
+    return;
+  }
+
+  try {
+    await apiPost("/applications/remove-member", { teamId, userId });
+    broadcastApplicationsUpdated();
+  } catch (err) {
+    console.error("Uye cikarma hatasi:", err);
+    throw err;
+  }
+}
+
 export async function addApplication(entry: NewApplicationInput): Promise<StoredApplication | null> {
   if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
     const activeApplications = listDemoApplications().filter(a => (a.status === "Beklemede" || a.status === "Onaylandi") && a.applicantLabel === entry.applicantLabel).length;

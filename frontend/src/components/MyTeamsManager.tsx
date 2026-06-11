@@ -2,7 +2,7 @@
 
 import { useApplications } from "@/hooks/useApplications";
 import { useTeamChat } from "@/hooks/useTeamChat";
-import { addMemberById, deleteApplication, deleteApplicationsByOpp } from "@/lib/applications";
+import { addMemberById, deleteApplication, deleteApplicationsByOpp, removeTeamMemberById } from "@/lib/applications";
 import { getAllOpportunities, fetchMyOpportunities, deleteOpportunityAsync, type Opportunity, type Team } from "@/lib/opportunities-data";
 import { EditTeamModal } from "./EditTeamModal";
 import { sendChatMessage } from "@/lib/chats";
@@ -243,7 +243,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
       <div className="space-y-4">
       {allTeams.map((opp) => {
         const isLeader = opp.isLeader;
-        const applicantMembers = applications.filter((a) => a.oppId === opp.id && a.status === "Onaylandi");
+        const myTeam = opp.teams?.find(t => (profileId && t.leader?.id === profileId) || t.leader?.name === userFullName) || opp.teams?.[0];
         
         // Lideri otomatik olarak takıma 1 kişi olarak dahil et
         const members = [
@@ -253,7 +253,12 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
             teamName: opp.teams[0]?.name || "Kurucu",
             isLeaderRole: true
           },
-          ...applicantMembers.map(m => ({ ...m, isLeaderRole: false }))
+          ...(opp.teams[0]?.members || []).map(m => ({ 
+            id: m.id, 
+            applicantLabel: m.name, 
+            teamName: opp.teams[0]?.name || "Takım", 
+            isLeaderRole: false 
+          }))
         ];
 
         const isOpen = openAccordionId === opp.id;
@@ -636,11 +641,11 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
                                   <p className="text-xs text-[var(--text-slate)] dark:text-slate-400">Takim: {m.teamName}</p>
                                 </div>
                               </div>
-                              {isLeader && !m.isLeaderRole && (
+                              {isLeader && !m.isLeaderRole && myTeam?.id && (
                                 <button
                                   onClick={async () => {
                                     if (window.confirm("Bu üyeyi ekipten çıkarmak istediğinize emin misiniz?")) {
-                                      await deleteApplication(m.id);
+                                      await removeTeamMemberById(myTeam.id, m.id);
                                       refresh();
                                     }
                                   }}
