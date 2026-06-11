@@ -13,7 +13,7 @@ export type Team = {
   communication?: "Discord" | "WhatsApp" | "Telegram";
   isOwner?: boolean;
   leader?: { name: string; initials: string; role: string; id?: string; skills?: string[]; teamsCount?: number; leaderCount?: number; projectsCount?: number; university?: string; department?: string; github?: string; linkedin?: string; };
-  members?: { id: string; name: string; initials: string; role: string; skills?: string[]; teamsCount?: number; leaderCount?: number; projectsCount?: number; university?: string; department?: string; github?: string; linkedin?: string; }[];
+  members?: { id?: string; name: string; initials: string; role: string; skills?: string[]; teamsCount?: number; leaderCount?: number; projectsCount?: number; university?: string; department?: string; github?: string; linkedin?: string; }[];
 };
 
 export type Opportunity = {
