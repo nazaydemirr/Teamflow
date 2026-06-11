@@ -25,7 +25,7 @@ export function SiteHeader({
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-[var(--surface)] dark:border-white/10">
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/feed" className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-[var(--flow-blue)] text-sm font-bold text-white shadow-md shadow-blue-500/20 ring-1 ring-white/10">
               T
             </span>
@@ -36,24 +36,14 @@ export function SiteHeader({
 
           <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
             <Link
-              href="/"
+              href="/feed"
               className={`transition-colors duration-[var(--duration)] ${
-                activeTab === "landing"
+                activeTab === "feed" || activeTab === "landing"
                   ? "border-b-2 border-[var(--flow-blue)] pb-1 text-[var(--text-navy)] dark:text-slate-100"
                   : "text-[var(--text-slate)] hover:text-[var(--text-navy)] dark:text-slate-300 dark:hover:text-slate-100"
               }`}
             >
               Ana Sayfa
-            </Link>
-            <Link
-              href="/feed"
-              className={`transition-colors duration-[var(--duration)] ${
-                activeTab === "feed"
-                  ? "border-b-2 border-[var(--flow-blue)] pb-1 text-[var(--text-navy)] dark:text-slate-100"
-                  : "text-[var(--text-slate)] hover:text-[var(--text-navy)] dark:text-slate-300 dark:hover:text-slate-100"
-              }`}
-            >
-              Akış
             </Link>
             <Link
               href="/profil"

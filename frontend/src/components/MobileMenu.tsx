@@ -9,8 +9,7 @@ export function MobileMenu() {
   const pathname = usePathname();
 
   const links = [
-    { href: "/", label: "Ana Sayfa" },
-    { href: "/feed", label: "Akış" },
+    { href: "/feed", label: "Ana Sayfa" },
     { href: "/lider/basvurular", label: "Lider Paneli" },
     { href: "/profil", label: "Profil" },
   ];
