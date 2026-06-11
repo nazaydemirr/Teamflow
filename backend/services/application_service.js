@@ -26,7 +26,22 @@ async function getApplications(uid, teamId, asLeader = false) {
     return { items: rows };
   } else if (asLeader) {
     const { rows } = await pool.query(`
-      SELECT a.*, u.display_name as applicant_label, u.skills as applicant_skills 
+      SELECT 
+        a.*, 
+        u.display_name as applicant_label, 
+        u.skills as applicant_skills,
+        u.university as applicant_university,
+        u.department as applicant_department,
+        u.grade as applicant_classlevel,
+        u.bio as applicant_bio,
+        u.github_url as applicant_github,
+        u.linkedin_url as applicant_linkedin,
+        (SELECT count(*) FROM team_members tm WHERE tm.user_id = u.id) as stats_active_teams,
+        (SELECT count(*) FROM teams t2 WHERE t2.leader_id = u.id) as stats_active_teams_led,
+        (SELECT count(*) FROM applications a2 WHERE a2.applicant_id = u.id AND a2.status IN ('pending', 'approved')) as stats_active_applications,
+        (SELECT count(*) > 0 FROM applications a2 WHERE a2.applicant_id = u.id AND a2.status = 'pending') as stats_pending_applications,
+        (SELECT array_agg(t2.name) FROM team_members tm JOIN teams t2 ON tm.team_id = t2.id WHERE tm.user_id = u.id) as stats_active_teams_names,
+        (SELECT array_agg(t2.name) FROM teams t2 WHERE t2.leader_id = u.id) as stats_led_teams_names
       FROM applications a
       JOIN teams t ON a.team_id = t.id
       JOIN users u ON a.applicant_id = u.id

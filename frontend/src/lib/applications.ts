@@ -135,7 +135,20 @@ export async function fetchApplications(): Promise<StoredApplication[]> {
       status: item.status === "pending" ? "Beklemede" : item.status === "approved" ? "Onaylandi" : item.status === "cancelled" ? "Iptal Edildi" : "Reddedildi",
       appliedAt: item.createdAt || new Date().toISOString(),
       leader: item.leader || "-",
-      description: item.description || "Bu ilan için açıklama bulunamadı."
+      description: item.description || "Bu ilan için açıklama bulunamadı.",
+      
+      applicantUniversity: item.applicant_university,
+      applicantDepartment: item.applicant_department,
+      applicantClassLevel: item.applicant_classlevel,
+      applicantBio: item.applicant_bio,
+      applicantGithub: item.applicant_github,
+      applicantLinkedin: item.applicant_linkedin,
+      statsActiveTeams: item.stats_active_teams ? parseInt(item.stats_active_teams) : 0,
+      statsActiveTeamsLed: item.stats_active_teams_led ? parseInt(item.stats_active_teams_led) : 0,
+      statsActiveApplications: item.stats_active_applications ? parseInt(item.stats_active_applications) : 0,
+      statsPendingApplications: item.stats_pending_applications === true,
+      statsActiveTeamsNames: item.stats_active_teams_names || [],
+      statsLedTeamsNames: item.stats_led_teams_names || []
     }));
   } catch (err) {
     console.error(err);

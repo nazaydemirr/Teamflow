@@ -104,28 +104,7 @@ export function ProfilePreviewModal({ isOpen, onClose, applicant }: ProfilePrevi
               )}
             </div>
 
-            {/* 3. Yarışma ve Takım İstatistikleri */}
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 border-b border-slate-100 dark:border-white/5 pb-1">Yarışma ve Takım İstatistikleri</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-100 dark:border-white/5">
-                  <div className="text-2xl font-bold text-[var(--flow-blue)]">{applicant.statsCompetitionsJoined ?? 0}</div>
-                  <div className="text-xs font-medium text-slate-500 mt-0.5">Katıldığı Yarışma</div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-100 dark:border-white/5">
-                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">{applicant.statsCompetitionsCompleted ?? 0}</div>
-                  <div className="text-xs font-medium text-slate-500 mt-0.5">Tamamladığı Yarışma</div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-100 dark:border-white/5">
-                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-500">{applicant.statsCompetitionsLed ?? 0}</div>
-                  <div className="text-xs font-medium text-slate-500 mt-0.5">Lider Olduğu Yarışma</div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-100 dark:border-white/5">
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-500">{applicant.statsTeamsCreated ?? 0}</div>
-                  <div className="text-xs font-medium text-slate-500 mt-0.5">Kurduğu Takım</div>
-                </div>
-              </div>
-            </div>
+
 
             {/* 4. Güncel Takım Durumu */}
             <div>
