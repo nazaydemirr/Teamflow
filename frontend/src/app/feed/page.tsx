@@ -554,8 +554,8 @@ function OpportunitySidePanelBody({
             <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
               {(() => {
                 const team = localTeams[0];
-                const isActualOwner = profileId && team.leader?.id === profileId;
-                const isMember = team.members?.some(m => profileId && m.id === profileId);
+                const isActualOwner = Boolean(profileId && team.leader?.id === profileId);
+                const isMember = Boolean(team.members?.some(m => profileId && m.id === profileId));
                 const joined = joinedTeams.has(team.id || "");
                 const blockedByCap = atApplicationCap && !joined && !isMember;
                 const disabled = joined || isMember || blockedByCap || isActualOwner;
@@ -608,8 +608,8 @@ function OpportunitySidePanelBody({
           ) : (
             <div className="space-y-4">
             {localTeams.map((team) => {
-              const isActualOwner = profileId && team.leader?.id === profileId;
-              const isMember = team.members?.some(m => profileId && m.id === profileId);
+              const isActualOwner = Boolean(profileId && team.leader?.id === profileId);
+              const isMember = Boolean(team.members?.some(m => profileId && m.id === profileId));
               const joined = joinedTeams.has(team.id || "");
               const blockedByCap = atApplicationCap && !joined && !isMember;
               const missingSlots = team.membersMax && team.membersCurrent !== undefined ? team.membersMax - team.membersCurrent : null;
