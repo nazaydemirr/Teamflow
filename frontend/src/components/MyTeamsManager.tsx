@@ -8,8 +8,8 @@ import { EditTeamModal } from "./EditTeamModal";
 import { sendChatMessage } from "@/lib/chats";
 import { useMemo, useState, useEffect } from "react";
 
-function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; userFullName: string; currentProfileId: string }) {
-  const { messages } = useTeamChat(oppId);
+function TeamChat({ teamId, userFullName, currentProfileId }: { teamId?: string; userFullName: string; currentProfileId: string }) {
+  const { messages } = useTeamChat(teamId || "");
   const [text, setText] = useState("");
 
   return (
@@ -60,8 +60,8 @@ function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; us
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && text.trim()) {
-                sendChatMessage(oppId, text.trim());
+              if (e.key === "Enter" && text.trim() && teamId) {
+                sendChatMessage(teamId, text.trim());
                 setText("");
               }
             }}
@@ -70,8 +70,8 @@ function TeamChat({ oppId, userFullName, currentProfileId }: { oppId: string; us
           />
           <button
             onClick={() => {
-              if (text.trim()) {
-                sendChatMessage(oppId, text.trim());
+              if (text.trim() && teamId) {
+                sendChatMessage(teamId, text.trim());
                 setText("");
               }
             }}
@@ -668,7 +668,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
 
                   {/* Alt: Sohbet */}
                   <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10 h-[400px]">
-                    <TeamChat oppId={opp.id} userFullName={userFullName} currentProfileId={profileId} />
+                    <TeamChat teamId={myTeam?.id} userFullName={userFullName} currentProfileId={profileId} />
                   </div>
                 </div>
               </div>
