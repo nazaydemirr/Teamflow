@@ -152,6 +152,15 @@ async function createOpportunity(uid, body) {
     throw error;
   }
 
+  // Duplicate check
+  const { rows: duplicateRows } = await pool.query(
+    "SELECT id FROM opportunities WHERE author_id = $1 AND title = $2 AND created_at > NOW() - INTERVAL '1 minute'",
+    [uid, parsed.data.title]
+  );
+  if (duplicateRows.length > 0) {
+    throw new Error("LIMIT_REACHED:Aynı başlıklı ilanı kısa süre içinde tekrar oluşturamazsınız. Lütfen bekleyin.");
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO opportunities (title, description, tags, deadline, members_max, type, author_id) 
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,

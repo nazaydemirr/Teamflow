@@ -112,6 +112,7 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
         // API Mode Save
         const oppData = {
           title,
+          type,
           description: description || "Açıklama belirtilmemiş.",
           tags: selectedTags.length > 0 ? selectedTags : ["Yeni", type],
           deadline: new Date(deadline).toISOString(),
