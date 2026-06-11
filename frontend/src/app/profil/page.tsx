@@ -422,8 +422,8 @@ export default function ProfilePage() {
                               ...prev,
                               applications: prev.applications.filter((a) => a.id !== app.id)
                             }));
-                          } catch (err) {
-                            alert("Başvuru gizlenirken hata oluştu.");
+                          } catch (err: any) {
+                            alert(`Başvuru gizlenirken hata oluştu: ${err?.message || "Bilinmeyen Hata"}`);
                           } finally {
                             setHidingAppId(null);
                           }
