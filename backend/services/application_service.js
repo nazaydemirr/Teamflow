@@ -63,7 +63,7 @@ async function getApplications(uid, teamId, asLeader = false) {
       JOIN users u ON a.applicant_id = u.id
       LEFT JOIN opportunities o ON a.opp_id = o.id
       LEFT JOIN users l ON a.leader_id = l.id
-      WHERE a.applicant_id = $1
+      WHERE a.applicant_id = $1 AND a.applicant_hidden = false
     `, [uid]);
     console.log(`[DEBUG] getApplications: asApplicant, uid=${uid}, found ${rows.length} applications.`);
     return { items: rows };
@@ -370,6 +370,41 @@ async function deleteApplication(uid, applicationId) {
   }
 }
 
+async function hideApplication(uid, applicationId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows } = await client.query("SELECT applicant_id, status FROM applications WHERE id = $1 FOR UPDATE", [applicationId]);
+    if (rows.length === 0) {
+      throw new Error("NOT_FOUND:Başvuru bulunamadı");
+    }
+
+    const app = rows[0];
+
+    // Sadece başvuru sahibi gizleyebilir
+    if (app.applicant_id !== uid) {
+      throw new Error("FORBIDDEN:Bu işlemi yapmaya yetkiniz yok");
+    }
+
+    // Yalnızca onaylanmış veya reddedilmiş başvurular gizlenebilir
+    if (app.status !== 'approved' && app.status !== 'rejected') {
+      throw new Error("INVALID_STATE:Sadece sonuçlanmış başvurular gizlenebilir");
+    }
+
+    // Başvuruyu applicant'tan gizle
+    await client.query("UPDATE applications SET applicant_hidden = true WHERE id = $1", [applicationId]);
+    
+    await client.query("COMMIT");
+    return { message: "Başvuru gizlendi." };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getApplications,
   createApplication,
@@ -377,5 +412,6 @@ module.exports = {
   acceptInvite,
   deleteApplication,
   addMemberDirectly,
-  removeMemberDirectly
+  removeMemberDirectly,
+  hideApplication
 };

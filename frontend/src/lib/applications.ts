@@ -146,13 +146,21 @@ export async function decideApplication(id: string, action: "approve" | "reject"
 }
 
 export async function deleteApplication(id: string) {
-  
-
   try {
     await apiDelete(`/applications/${id}`);
     broadcastApplicationsUpdated();
   } catch (err) {
     console.error(err);
+    throw err;
+  }
+}
+
+export async function hideApplication(id: string) {
+  try {
+    await apiPatch(`/applications/${id}/hide`);
+    broadcastApplicationsUpdated();
+  } catch (err) {
+    console.error("Başvuru gizlenemedi:", err);
     throw err;
   }
 }

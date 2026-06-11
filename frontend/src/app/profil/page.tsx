@@ -7,7 +7,7 @@ import { groupSkillsForDisplay } from "@/lib/skills-catalog";
 import { apiGet, apiPatch } from "@/lib/api";
 import { fetchUserSkills, updateUserSkills, hasMinimumSkills } from "@/lib/user-skills";
 import { fetchUserProfileDetails, updateUserProfileDetails, type UserProfileDetails } from "@/lib/user-profile";
-import { fetchApplications, deleteApplication } from "@/lib/applications";
+import { fetchApplications, deleteApplication, hideApplication } from "@/lib/applications";
 import { getAllOpportunities } from "@/lib/opportunities-data";
 import { useApplications } from "@/hooks/useApplications";
 import Link from "next/link";
@@ -105,6 +105,7 @@ export default function ProfilePage() {
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [appToWithdraw, setAppToWithdraw] = useState<Application | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [hidingAppId, setHidingAppId] = useState<string | null>(null);
 
   const initials = useMemo(() => {
     const source = profile.fullName || user?.displayName || user?.email || "TF";
@@ -398,7 +399,7 @@ export default function ProfilePage() {
                 profile.applications.map((app, i) => (
                   <article
                     key={`${app.title}-${i}`}
-                    className="rounded-[var(--radius-md)] border border-slate-200 bg-[var(--surface-raised)] p-3 transition-all duration-[var(--duration)] [transition-timing-function:var(--ease)] hover:-translate-y-1 hover:shadow-lg dark:border-white/10"
+                    className="relative rounded-[var(--radius-md)] border border-slate-200 bg-[var(--surface-raised)] p-3 transition-all duration-[var(--duration)] [transition-timing-function:var(--ease)] hover:-translate-y-1 hover:shadow-lg dark:border-white/10"
                   >
                     <h3 className="text-sm font-semibold text-[var(--text-navy)]">{app.title}</h3>
                     <p className="mt-1 text-xs text-[var(--text-slate)]">Ekip Lideri: {app.leader}</p>
@@ -408,6 +409,34 @@ export default function ProfilePage() {
                     >
                       {app.status}
                     </p>
+                    
+                    {(app.status === "Onaylandi" || app.status === "Reddedildi") && (
+                      <button
+                        title="Bu başvuruyu listemden gizle"
+                        onClick={async () => {
+                          if (!app.id) return;
+                          setHidingAppId(app.id);
+                          try {
+                            await hideApplication(app.id);
+                            setProfile((prev) => ({
+                              ...prev,
+                              applications: prev.applications.filter((a) => a.id !== app.id)
+                            }));
+                          } catch (err) {
+                            alert("Başvuru gizlenirken hata oluştu.");
+                          } finally {
+                            setHidingAppId(null);
+                          }
+                        }}
+                        disabled={hidingAppId === app.id}
+                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
+                      >
+                        <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+
                     {app.status === "Onaylandi" && app.oppId && (
                       <button 
                         onClick={() => setFocusTeamId(app.oppId!)}

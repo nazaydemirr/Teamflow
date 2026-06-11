@@ -162,4 +162,17 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
+router.patch("/:id/hide", authMiddleware, async (req, res) => {
+  try {
+    const result = await applicationService.hideApplication(req.user.uid, req.params.id);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    if (err.message.includes(":")) {
+      const [code, msg] = err.message.split(":");
+      return sendError(res, code === "NOT_FOUND" ? 404 : code === "FORBIDDEN" ? 403 : 400, code, msg);
+    }
+    sendError(res, 500, "INTERNAL_SERVER_ERROR", err.message);
+  }
+});
+
 module.exports = router;

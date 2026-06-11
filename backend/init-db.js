@@ -91,6 +91,7 @@ async function initDB() {
         applicant_id UUID REFERENCES users(id) ON DELETE CASCADE,
         status VARCHAR(50) DEFAULT 'pending',
         score INT DEFAULT 0,
+        applicant_hidden BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
