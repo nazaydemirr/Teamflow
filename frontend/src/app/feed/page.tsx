@@ -997,6 +997,17 @@ function FeedPageInner() {
       }
       if (myApplications.some(a => a.oppId === selectedOpportunity.id && a.teamName === teamId && a.status !== "Reddedildi" && a.status !== "Iptal Edildi")) return;
 
+      if (selectedOpportunity.author === currentUserFullName) {
+        alert("Kendi oluşturduğunuz ilana veya takıma başvuru yapamazsınız.");
+        return;
+      }
+      
+      const targetTeam = selectedOpportunity.teams?.find((t) => t.name === teamId || t.id === teamId);
+      if (targetTeam?.leader?.name === currentUserFullName) {
+        alert("Lideri olduğunuz takıma başvuru yapamazsınız.");
+        return;
+      }
+
       const row = await addApplication({
         oppId: selectedOpportunity.id,
         oppTitle: selectedOpportunity.title,
@@ -1028,6 +1039,17 @@ function FeedPageInner() {
     }
     if (myApplications.some(a => a.oppId === opp.id && a.teamName === teamName && a.status !== "Reddedildi" && a.status !== "Iptal Edildi")) {
       alert("Bu projeye zaten başvurdunuz.");
+      return;
+    }
+
+    if (opp.author === currentUserFullName) {
+      alert("Kendi oluşturduğunuz ilana veya takıma başvuru yapamazsınız.");
+      return;
+    }
+    
+    const targetTeam = opp.teams?.find((t) => t.name === teamName || t.id === teamName);
+    if (targetTeam?.leader?.name === currentUserFullName) {
+      alert("Lideri olduğunuz takıma başvuru yapamazsınız.");
       return;
     }
 
