@@ -165,17 +165,18 @@ export default function ProfilePage() {
           const profileDetails = await fetchUserProfileDetails();
           
           const demoProfileType = localStorage.getItem("teamflow_demo_profile");
-          let demoFullName = "Demo Kullanici";
+          const storedDisplayName = localStorage.getItem("teamflow_display_name");
+          let demoFullName = storedDisplayName || "Demo Kullanici";
           let demoBio = "Teamflow Demo Hesabı";
           
           if (demoProfileType === "frontend") {
-            demoFullName = "Frontend Geliştirici (Demo)";
+            if (!storedDisplayName) demoFullName = "Frontend Geliştirici (Demo)";
             demoBio = "React ve Next.js üzerine odaklanmış bir arayüz geliştiricisi.";
           } else if (demoProfileType === "backend") {
-            demoFullName = "Backend Geliştirici (Demo)";
+            if (!storedDisplayName) demoFullName = "Backend Geliştirici (Demo)";
             demoBio = "Ölçeklenebilir sistemler kuran bir arka yüz geliştiricisi.";
           } else if (demoProfileType === "ai") {
-            demoFullName = "Yapay Zeka Uzmanı (Demo)";
+            if (!storedDisplayName) demoFullName = "Yapay Zeka Uzmanı (Demo)";
             demoBio = "Veri bilimi ve makine öğrenimi modelleri üzerinde çalışan uzman.";
           }
 

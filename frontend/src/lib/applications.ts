@@ -168,10 +168,42 @@ export async function decideApplication(id: string, action: "approve" | "reject"
       const existing = localStorage.getItem("teamflow_demo_applications");
       if (existing) {
         const list = JSON.parse(existing);
+        let targetApp = list.find((a: any) => a.id === id);
+
+        if (action === "approve" && targetApp) {
+           const { getAllOpportunities, updateOpportunity } = await import("@/lib/opportunities-data");
+           const allOpps = getAllOpportunities();
+           const oppIdToFind = targetApp.oppId || targetApp.opp_id;
+           const opp = allOpps.find((o: any) => o.id === oppIdToFind);
+           if (opp && opp.teams) {
+              const teamName = targetApp.teamName || targetApp.team_name;
+              const teamIndex = opp.teams.findIndex((t: any) => t.name === teamName);
+              if (teamIndex !== -1) {
+                 const t = opp.teams[teamIndex];
+                 if (t.membersMax && t.membersCurrent && t.membersCurrent >= t.membersMax) {
+                    throw new Error("Takım kapasitesi dolu. Daha fazla üye kabul edemezsiniz.");
+                 }
+                 if (!t.members) t.members = [];
+                 if (!t.members.find((m: any) => m.name === targetApp.applicantLabel)) {
+                     t.membersCurrent = (t.membersCurrent || 0) + 1;
+                     t.members.push({
+                        id: "usr-" + Math.random().toString(36).slice(2, 8),
+                        name: targetApp.applicantLabel,
+                        initials: targetApp.applicantLabel.substring(0, 2).toUpperCase(),
+                        role: "Üye",
+                     });
+                     updateOpportunity(opp.id, { teams: opp.teams });
+                 }
+              }
+           }
+        }
+
         const mapped = list.map((a: any) => a.id === id ? { ...a, status: action === "approve" ? "Onaylandi" : "Reddedildi" } : a);
         localStorage.setItem("teamflow_demo_applications", JSON.stringify(mapped));
       }
-    } catch {}
+    } catch (err: any) {
+      if (err.message && err.message.includes("kapasite")) throw err;
+    }
     broadcastApplicationsUpdated();
     return;
   }

@@ -153,7 +153,7 @@ async function handleDecision(uid, applicationId, body) {
     
     console.log(`[DEBUG] handleDecision: uid=${uid}, appId=${applicationId}, teamId=${appData.team_id}`);
     
-    const { rows: teamRows } = await client.query("SELECT leader_id, name FROM teams WHERE id = $1", [appData.team_id]);
+    const { rows: teamRows } = await client.query("SELECT leader_id, name, members_current, members_max FROM teams WHERE id = $1 FOR UPDATE", [appData.team_id]);
     if (teamRows.length === 0) throw new Error("NOT_FOUND:Ekip bulunamadı");
     
     console.log(`[DEBUG] handleDecision: team leader_id=${teamRows[0].leader_id}, expected uid=${uid}`);
@@ -165,6 +165,9 @@ async function handleDecision(uid, applicationId, body) {
     console.log(`[DEBUG] handleDecision: executing decision=${parsed.data.decision}`);
 
     if (parsed.data.decision === "approve") {
+      if (teamRows[0].members_max && teamRows[0].members_current >= teamRows[0].members_max) {
+        throw new Error("VALIDATION_ERROR:Takım kapasitesi dolu. Daha fazla üye kabul edemezsiniz.");
+      }
       const { rowCount } = await client.query("INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [appData.team_id, appData.applicant_id]);
       if (rowCount > 0) {
         await client.query("UPDATE teams SET members_current = members_current + 1 WHERE id = $1", [appData.team_id]);
