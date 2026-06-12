@@ -679,7 +679,7 @@ export function MyTeamsManager({ userFullName, focusTeamId, onFocusClear }: { us
 
                   {/* Alt: Sohbet */}
                   <div className="flex flex-col overflow-hidden rounded-2xl bg-[var(--surface)] shadow-lg border border-slate-200 dark:border-white/10 h-[400px]">
-                    <TeamChat teamId={myTeam?.id} userFullName={userFullName} currentProfileId={profileId} />
+                    <TeamChat teamId={myTeam?.id || opp.id} userFullName={userFullName} currentProfileId={profileId} />
                   </div>
                 </div>
               </div>

@@ -98,7 +98,7 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
           membersCurrent: 1, // Author is in the team
           membersMax: finalMembersMax,
           description,
-          teams: type === "bitirme-projesi" ? [{ name: "Proje Ekibi", full: false, isOwner: true, leader: { name: demoFullName, initials: demoInitials, role: "Proje Sahibi", id: `demo-${Date.now()}` } }] : [],
+          teams: type === "bitirme-projesi" ? [{ id: `team-${Date.now()}`, name: "Proje Ekibi", full: false, isOwner: true, leader: { name: demoFullName, initials: demoInitials, role: "Proje Sahibi", id: `demo-${Date.now()}` } }] : [],
         };
         
         const stored = localStorage.getItem("teamflow_custom_opportunities");
