@@ -173,13 +173,14 @@ export default function LeaderApplicationsPage() {
           }
 
           const demoProfileType = localStorage.getItem("teamflow_demo_profile");
-          let demoFullName = "Demo Kullanici";
+          const storedDisplayName = localStorage.getItem("teamflow_display_name");
+          let demoFullName = storedDisplayName || "Demo Kullanici";
           if (demoProfileType === "frontend") {
-             demoFullName = "Frontend Geliştirici (Demo)";
+             if (!storedDisplayName) demoFullName = "Frontend Geliştirici (Demo)";
           } else if (demoProfileType === "backend") {
-             demoFullName = "Backend Geliştirici (Demo)";
+             if (!storedDisplayName) demoFullName = "Backend Geliştirici (Demo)";
           } else if (demoProfileType === "ai") {
-             demoFullName = "Yapay Zeka Uzmanı (Demo)";
+             if (!storedDisplayName) demoFullName = "Yapay Zeka Uzmanı (Demo)";
           }
 
           const { getAllOpportunities } = await import("@/lib/opportunities-data");

@@ -806,16 +806,16 @@ function FeedPageInner() {
 
   useEffect(() => {
     const isDemo = typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true";
-    if (isDemo) {
-      const pType = localStorage.getItem("teamflow_demo_profile");
-      if (pType === "frontend") setCurrentUserFullName("Frontend Geliştirici (Demo)");
-      else if (pType === "backend") setCurrentUserFullName("Backend Geliştirici (Demo)");
-      else if (pType === "ai") setCurrentUserFullName("Yapay Zeka Uzmanı (Demo)");
-      else setCurrentUserFullName("Demo Kullanici");
-    } else if (typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
       const savedName = localStorage.getItem("teamflow_display_name");
       if (savedName) {
         setCurrentUserFullName(savedName);
+      } else if (isDemo) {
+        const pType = localStorage.getItem("teamflow_demo_profile");
+        if (pType === "frontend") setCurrentUserFullName("Frontend Geliştirici (Demo)");
+        else if (pType === "backend") setCurrentUserFullName("Backend Geliştirici (Demo)");
+        else if (pType === "ai") setCurrentUserFullName("Yapay Zeka Uzmanı (Demo)");
+        else setCurrentUserFullName("Demo Kullanici");
       }
     }
   }, []);
