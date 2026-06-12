@@ -70,18 +70,20 @@ export function CreateOpportunityModal({ isOpen, onClose, onSuccess }: CreateOpp
       const isDemo = typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true";
       
       if (isDemo) {
+        const storedDisplayName = localStorage.getItem("teamflow_display_name");
         const demoProfileType = localStorage.getItem("teamflow_demo_profile");
-        let demoFullName = "Demo Kullanici";
-        let demoInitials = "DK";
+        let demoFullName = storedDisplayName || "Demo Kullanici";
+        let demoInitials = demoFullName.split(" ").map((n: string) => n[0] || "").join("").substring(0, 2).toUpperCase();
+        
         if (demoProfileType === "frontend") {
-           demoFullName = "Frontend Geliştirici (Demo)";
-           demoInitials = "FG";
+           if (!storedDisplayName) demoFullName = "Frontend Geliştirici (Demo)";
+           if (!storedDisplayName) demoInitials = "FG";
         } else if (demoProfileType === "backend") {
-           demoFullName = "Backend Geliştirici (Demo)";
-           demoInitials = "BG";
+           if (!storedDisplayName) demoFullName = "Backend Geliştirici (Demo)";
+           if (!storedDisplayName) demoInitials = "BG";
         } else if (demoProfileType === "ai") {
-           demoFullName = "Yapay Zeka Uzmanı (Demo)";
-           demoInitials = "YU";
+           if (!storedDisplayName) demoFullName = "Yapay Zeka Uzmanı (Demo)";
+           if (!storedDisplayName) demoInitials = "YU";
         }
 
         const newOpp: Opportunity = {
