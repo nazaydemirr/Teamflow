@@ -170,19 +170,6 @@ export default function LeaderApplicationsPage() {
           let items: any[] = [];
           if (existing) {
              items = JSON.parse(existing);
-          } else {
-             items = [
-               {
-                 id: "demo-leader-app-1",
-                 oppId: "1",
-                 oppTitle: "Yapay Zeka Destekli Kod Analizi",
-                 teamName: "AI Wizards",
-                 applicantLabel: "Mehmet Yılmaz",
-                 applicantSkills: ["Python", "Machine Learning"],
-                 status: "Beklemede",
-                 appliedAt: new Date().toISOString()
-               }
-             ];
           }
           const pendingItems = items.filter((item: any) => item.status === "Beklemede" || item.status === "pending");
           setLeaderApps(pendingItems.map((item: any) => ({
