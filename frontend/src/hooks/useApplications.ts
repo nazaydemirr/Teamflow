@@ -15,7 +15,13 @@ export function useApplications() {
     setApplicationsState(list);
     if (typeof window !== "undefined") {
       if (localStorage.getItem("teamflow_demo_auth") === "true") {
-        setActiveCount(list.length);
+        const storedDisplayName = localStorage.getItem("teamflow_display_name") || "Demo Kullanici";
+        const myApps = list.filter((a: any) => 
+           a.applicantLabel === storedDisplayName || a.applicantLabel === "Teamflow Kullanici" || a.applicantLabel === "Demo kullanici"
+        );
+        setApplicationsState(myApps);
+        const active = myApps.filter((a: any) => a.status !== "Reddedildi" && a.status !== "Iptal Edildi");
+        setActiveCount(active.length);
         setLeaderCount(0);
         return;
       }
