@@ -123,7 +123,6 @@ export default function LoginPage() {
       localStorage.setItem("teamflow_profile_id", uid);
       localStorage.setItem("teamflow_display_name", name);
       localStorage.removeItem("teamflow_user_skills_v1");
-      localStorage.removeItem("teamflow_demo_applications");
       
       router.replace("/feed");
     } catch (err: any) {

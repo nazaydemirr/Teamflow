@@ -171,7 +171,25 @@ export default function LeaderApplicationsPage() {
           if (existing) {
              items = JSON.parse(existing);
           }
-          const pendingItems = items.filter((item: any) => item.status === "Beklemede" || item.status === "pending");
+
+          const demoProfileType = localStorage.getItem("teamflow_demo_profile");
+          let demoFullName = "Demo Kullanici";
+          if (demoProfileType === "frontend") {
+             demoFullName = "Frontend Geliştirici (Demo)";
+          } else if (demoProfileType === "backend") {
+             demoFullName = "Backend Geliştirici (Demo)";
+          } else if (demoProfileType === "ai") {
+             demoFullName = "Yapay Zeka Uzmanı (Demo)";
+          }
+
+          const { getAllOpportunities } = await import("@/lib/opportunities-data");
+          const myOpps = getAllOpportunities().filter(o => o.author === demoFullName);
+          const myOppIds = myOpps.map(o => o.id);
+
+          const pendingItems = items.filter((item: any) => 
+            (item.status === "Beklemede" || item.status === "pending") &&
+            myOppIds.includes(item.oppId || item.opp_id)
+          );
           setLeaderApps(pendingItems.map((item: any) => ({
             id: item.id,
             oppId: item.oppId || item.opp_id,
