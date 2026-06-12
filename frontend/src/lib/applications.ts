@@ -38,6 +38,16 @@ export function broadcastApplicationsUpdated() {
   window.dispatchEvent(new Event("teamflow-applications"));
 }
 export async function fetchApplications(): Promise<StoredApplication[]> {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    try {
+      const demoApps = localStorage.getItem("teamflow_demo_applications");
+      if (demoApps) {
+        return JSON.parse(demoApps);
+      }
+    } catch {}
+    return [];
+  }
+
   try {
     const data = await apiGet("/applications") as any;
     if (!data.items) return [];
@@ -107,7 +117,26 @@ export async function removeTeamMemberById(teamId: string, userId: string) {
 }
 
 export async function addApplication(entry: NewApplicationInput): Promise<StoredApplication | null> {
-  
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    const newApp: StoredApplication = {
+      id: "demo-" + Math.random().toString(36).substring(2, 9),
+      oppId: entry.oppId,
+      oppTitle: entry.oppTitle,
+      teamName: entry.teamName,
+      applicantLabel: entry.applicantLabel,
+      applicantSkills: entry.applicantSkills,
+      status: "Beklemede",
+      appliedAt: new Date().toISOString()
+    };
+    try {
+      const existing = localStorage.getItem("teamflow_demo_applications");
+      const list = existing ? JSON.parse(existing) : [];
+      list.push(newApp);
+      localStorage.setItem("teamflow_demo_applications", JSON.stringify(list));
+    } catch {}
+    broadcastApplicationsUpdated();
+    return newApp;
+  }
 
   try {
     const data = await apiPost("/applications", {
@@ -146,6 +175,18 @@ export async function decideApplication(id: string, action: "approve" | "reject"
 }
 
 export async function deleteApplication(id: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    try {
+      const existing = localStorage.getItem("teamflow_demo_applications");
+      if (existing) {
+        const list = JSON.parse(existing);
+        const filtered = list.filter((a: any) => a.id !== id);
+        localStorage.setItem("teamflow_demo_applications", JSON.stringify(filtered));
+      }
+    } catch {}
+    broadcastApplicationsUpdated();
+    return;
+  }
   try {
     await apiDelete(`/applications/${id}`);
     broadcastApplicationsUpdated();
@@ -156,6 +197,18 @@ export async function deleteApplication(id: string) {
 }
 
 export async function hideApplication(id: string) {
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    try {
+      const existing = localStorage.getItem("teamflow_demo_applications");
+      if (existing) {
+        const list = JSON.parse(existing);
+        const filtered = list.filter((a: any) => a.id !== id);
+        localStorage.setItem("teamflow_demo_applications", JSON.stringify(filtered));
+      }
+    } catch {}
+    broadcastApplicationsUpdated();
+    return;
+  }
   try {
     await apiPatch(`/applications/${id}/hide`);
     broadcastApplicationsUpdated();

@@ -14,6 +14,11 @@ export function useApplications() {
     const list = await fetchApplications();
     setApplicationsState(list);
     if (typeof window !== "undefined") {
+      if (localStorage.getItem("teamflow_demo_auth") === "true") {
+        setActiveCount(list.length);
+        setLeaderCount(0);
+        return;
+      }
       try {
         const meData = await apiGet("/me") as any;
         if (meData && meData.stats) {
