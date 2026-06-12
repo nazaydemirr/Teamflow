@@ -165,6 +165,39 @@ export default function LeaderApplicationsPage() {
   useEffect(() => {
     async function loadLeaderApps() {
       try {
+        if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+          const existing = localStorage.getItem("teamflow_demo_applications");
+          let items: any[] = [];
+          if (existing) {
+             items = JSON.parse(existing);
+          } else {
+             items = [
+               {
+                 id: "demo-leader-app-1",
+                 oppId: "1",
+                 oppTitle: "Yapay Zeka Destekli Kod Analizi",
+                 teamName: "AI Wizards",
+                 applicantLabel: "Mehmet Yılmaz",
+                 applicantSkills: ["Python", "Machine Learning"],
+                 status: "Beklemede",
+                 appliedAt: new Date().toISOString()
+               }
+             ];
+          }
+          const pendingItems = items.filter((item: any) => item.status === "Beklemede" || item.status === "pending");
+          setLeaderApps(pendingItems.map((item: any) => ({
+            id: item.id,
+            oppId: item.oppId || item.opp_id,
+            oppTitle: item.oppTitle || `İlan ${item.opp_id?.substring(0, 6) || "1"}`,
+            teamName: item.teamName || item.team_name || item.team_id,
+            applicantLabel: item.applicantLabel || item.applicant_label || "",
+            applicantSkills: item.applicantSkills || item.applicant_skills || [],
+            status: "Beklemede",
+            appliedAt: item.appliedAt || item.createdAt || new Date().toISOString(),
+          })));
+          return;
+        }
+
         const { apiGet } = await import("@/lib/api");
         const data = await apiGet("/applications?as_leader=true") as any;
         if (data && data.items) {

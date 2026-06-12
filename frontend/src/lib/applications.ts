@@ -163,7 +163,18 @@ export async function addApplication(entry: NewApplicationInput): Promise<Stored
 }
 
 export async function decideApplication(id: string, action: "approve" | "reject", message?: string) {
-  
+  if (typeof window !== "undefined" && localStorage.getItem("teamflow_demo_auth") === "true") {
+    try {
+      const existing = localStorage.getItem("teamflow_demo_applications");
+      if (existing) {
+        const list = JSON.parse(existing);
+        const mapped = list.map((a: any) => a.id === id ? { ...a, status: action === "approve" ? "Onaylandi" : "Reddedildi" } : a);
+        localStorage.setItem("teamflow_demo_applications", JSON.stringify(mapped));
+      }
+    } catch {}
+    broadcastApplicationsUpdated();
+    return;
+  }
 
   try {
     await apiPost(`/applications/${id}/decision`, { decision: action, message });
