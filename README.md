@@ -3,6 +3,7 @@
 Öğrencilerin yeteneklerine göre proje/yarışma/staj fırsatlarıyla eşleştiği, başvuru ve ekip lideri onay süreçlerini yöneten platform.
 
 Kaynak: (https://teamflow-orcin.vercel.app/)
+kullanım videosu : https://drive.google.com/file/d/1fu0v4R5kgObhFROs3y9MAqUkNohJO-8g/view?usp=sharing
 
 ## Kapsam
 
